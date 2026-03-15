@@ -1274,180 +1274,195 @@ function initChat() {
 
   sendBtn.addEventListener("click", chatSend);
 
-  // Voice input via Web Speech API
+  // Voice input via MediaRecorder + server-side Whisper transcription
   const micBtn = document.getElementById("chat-mic");
   const voiceFab = document.getElementById("voice-fab");
   const voiceOverlay = document.getElementById("voice-overlay");
   const voiceTranscript = document.getElementById("voice-transcript");
   const voiceCancel = document.getElementById("voice-cancel");
-  const SILENCE_TIMEOUT = 2500;
-  const SEND_KEYWORD = /\bsend it\b/i;
+  const SILENCE_TIMEOUT = 2000; // ms of silence before auto-stop
+  const SILENCE_THRESHOLD = 0.01; // audio level below this = silence
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    let finalTranscript = "";
-    let listening = false;
-    let silenceTimer = null;
-    let voiceMode = false; // true = FAB/overlay mode (auto-send), false = inline mic
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioStream = null;
+  let audioContext = null;
+  let analyser = null;
+  let silenceTimer = null;
+  let listening = false;
+  let voiceMode = false; // true = FAB/overlay (auto-send), false = inline
 
-    function resetSilenceTimer() {
-      clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        if (listening && voiceMode) {
-          recognition.stop();
-        }
-      }, SILENCE_TIMEOUT);
+  async function startVoice(overlay) {
+    voiceMode = overlay;
+    micBtn.classList.add("mic-active");
+    if (overlay) {
+      voiceOverlay.classList.add("active");
+      voiceTranscript.textContent = "Listening...";
+      if (!panel.classList.contains("expanded")) {
+        panel.classList.add("expanded");
+      }
+      chatEnsureReady();
+    } else {
+      input.placeholder = "Listening...";
+      input.classList.add("mic-listening");
     }
 
-    function startVoice(overlay) {
-      voiceMode = overlay;
-      finalTranscript = overlay ? "" : input.value;
-      recognition.continuous = true;
-      // Show immediate feedback before recognition.start() connects to server
-      micBtn.classList.add("mic-active");
-      if (overlay) {
-        voiceOverlay.classList.add("active");
-        voiceTranscript.textContent = "Listening...";
-        if (!panel.classList.contains("expanded")) {
-          panel.classList.add("expanded");
-        }
-        chatEnsureReady();
-      } else {
-        input.placeholder = "Connecting...";
-        input.classList.add("mic-listening");
-      }
-      try {
-        recognition.start();
-      } catch (e) {
-        // Already started
-      }
+    try {
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      resetVoiceUI();
+      console.warn("Microphone access denied:", e);
+      if (overlay) voiceTranscript.textContent = "Mic access denied";
+      else input.placeholder = "Mic access denied";
+      setTimeout(resetVoiceUI, 2000);
+      return;
     }
 
-    function stopVoice(send) {
-      clearTimeout(silenceTimer);
-      listening = false;
-      micBtn.classList.remove("mic-active");
-      voiceOverlay.classList.remove("active");
-      try { recognition.stop(); } catch (e) {}
+    // Set up silence detection via Web Audio API
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(audioStream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+    const dataArray = new Float32Array(analyser.fftSize);
 
-      if (send && voiceMode) {
-        const text = finalTranscript.replace(SEND_KEYWORD, "").trim();
-        if (text) {
-          input.value = text;
-          chatSend();
-        }
+    // Choose format: prefer webm/opus, fall back to whatever's available
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+      ? "audio/webm"
+      : "";
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(audioStream, mimeType ? { mimeType } : {});
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+      transcribeAndHandle(blob);
+    };
+    mediaRecorder.start(250); // collect chunks every 250ms
+    listening = true;
+
+    // Silence detection loop
+    let speechDetected = false;
+    function checkSilence() {
+      if (!listening) return;
+      analyser.getFloatTimeDomainData(dataArray);
+      let rms = 0;
+      for (let i = 0; i < dataArray.length; i++) rms += dataArray[i] * dataArray[i];
+      rms = Math.sqrt(rms / dataArray.length);
+
+      if (rms > SILENCE_THRESHOLD) {
+        speechDetected = true;
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+        if (voiceMode) voiceTranscript.textContent = "Listening... (speak now)";
+      } else if (speechDetected && !silenceTimer) {
+        // Speech was detected, now silence -- start countdown
+        silenceTimer = setTimeout(() => {
+          if (listening) stopVoice(true);
+        }, SILENCE_TIMEOUT);
       }
-      voiceMode = false;
+      requestAnimationFrame(checkSilence);
+    }
+    checkSilence();
+  }
+
+  function stopVoice(send) {
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+    const wasListening = listening;
+    listening = false;
+
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      if (send && wasListening) {
+        mediaRecorder.stop(); // triggers onstop -> transcribeAndHandle
+      } else {
+        mediaRecorder.ondataavailable = null;
+        mediaRecorder.onstop = null;
+        mediaRecorder.stop();
+        resetVoiceUI();
+      }
+    } else {
+      resetVoiceUI();
     }
 
-    // FAB button - overlay voice mode with auto-send
-    voiceFab.addEventListener("click", () => {
-      if (listening) {
-        stopVoice(true);
-      } else {
-        startVoice(true);
-      }
-    });
+    // Stop mic stream
+    if (audioStream) {
+      audioStream.getTracks().forEach((t) => t.stop());
+      audioStream = null;
+    }
+    if (audioContext) {
+      audioContext.close().catch(() => {});
+      audioContext = null;
+    }
+  }
 
-    // Inline mic button in chat input row (inline mode: text fills input, no overlay)
-    micBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (listening) {
-        stopVoice(false);
-      } else {
-        startVoice(false);
-      }
-    });
+  function resetVoiceUI() {
+    micBtn.classList.remove("mic-active");
+    voiceOverlay.classList.remove("active");
+    input.classList.remove("mic-listening");
+    input.placeholder = "What's on your mind?";
+    voiceMode = false;
+  }
 
-    // Cancel button in overlay
-    voiceCancel.addEventListener("click", () => {
-      stopVoice(false);
-    });
+  async function transcribeAndHandle(blob) {
+    // Show transcribing state
+    if (voiceMode) {
+      voiceTranscript.textContent = "Transcribing...";
+    } else {
+      input.placeholder = "Transcribing...";
+    }
 
-    recognition.addEventListener("start", () => {
-      listening = true;
+    try {
+      const resp = await fetch("api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "audio/webm" },
+        body: blob,
+      });
+      const data = await resp.json();
+      const text = (data.text || "").trim();
+
       if (voiceMode) {
-        resetSilenceTimer();
-      } else {
-        input.style.maxHeight = "200px";
-        input.placeholder = "Listening...";
-      }
-    });
-
-    recognition.addEventListener("end", () => {
-      if (listening && voiceMode) {
-        // Auto-send on end (silence triggered stop or browser stopped)
-        const text = finalTranscript.replace(SEND_KEYWORD, "").trim();
-        listening = false;
-        micBtn.classList.remove("mic-active");
-        voiceOverlay.classList.remove("active");
+        resetVoiceUI();
         if (text) {
           input.value = text;
           chatSend();
         }
-        voiceMode = false;
-      } else if (listening && !voiceMode) {
-        // Inline mode: browser stopped recognition prematurely, restart it
-        try { recognition.start(); } catch (e) {}
       } else {
-        listening = false;
-        micBtn.classList.remove("mic-active");
-        voiceOverlay.classList.remove("active");
-        input.style.maxHeight = "";
-        input.placeholder = "What's on your mind?";
-        input.classList.remove("mic-listening");
-        if (input.value.trim()) {
+        resetVoiceUI();
+        if (text) {
+          input.value = text;
           input.style.height = "auto";
           input.style.height = Math.min(input.scrollHeight, 200) + "px";
+          input.focus();
         }
       }
-    });
-
-    recognition.addEventListener("result", (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          finalTranscript += (finalTranscript ? " " : "") + e.results[i][0].transcript;
-        } else {
-          interim += e.results[i][0].transcript;
-        }
-      }
-      const display = finalTranscript + (interim ? " " + interim : "");
-
-      if (voiceMode) {
-        voiceTranscript.textContent = display || "Listening...";
-        resetSilenceTimer();
-        // Check for keyword trigger
-        if (SEND_KEYWORD.test(display)) {
-          stopVoice(true);
-          return;
-        }
-      } else {
-        input.value = display;
-        input.style.height = "auto";
-        input.style.height = Math.min(input.scrollHeight, 200) + "px";
-        // Scroll messages up so input stays visible
-        const messages = document.getElementById("chat-messages");
-        messages.scrollTop = messages.scrollHeight;
-      }
-    });
-
-    recognition.addEventListener("error", (e) => {
-      listening = false;
-      micBtn.classList.remove("mic-active");
-      voiceOverlay.classList.remove("active");
-      voiceMode = false;
-      clearTimeout(silenceTimer);
-      if (e.error !== "aborted") console.warn("Speech recognition error:", e.error);
-    });
-  } else {
-    micBtn.style.display = "none";
-    voiceFab.style.display = "none";
+    } catch (e) {
+      console.warn("Transcription failed:", e);
+      resetVoiceUI();
+    }
   }
+
+  // FAB button - overlay voice mode with auto-send
+  voiceFab.addEventListener("click", () => {
+    if (listening) stopVoice(true);
+    else startVoice(true);
+  });
+
+  // Inline mic button
+  micBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (listening) stopVoice(false);
+    else startVoice(false);
+  });
+
+  // Cancel button in overlay
+  voiceCancel.addEventListener("click", () => {
+    stopVoice(false);
+  });
 
   // Check availability
   fetch("api/chat/status")

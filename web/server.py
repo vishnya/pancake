@@ -2,10 +2,12 @@
 
 import hashlib
 import hmac
+import io
 import json
 import os
 import secrets
 import sys
+import tempfile
 import time
 import uuid
 
@@ -104,6 +106,17 @@ def _save_chat_session(session_id: str, messages: list):
             if text_parts:
                 display_msgs.append({"role": "assistant", "content": "".join(text_parts)})
     (CHAT_DIR / f"{session_id}.json").write_text(json.dumps(display_msgs))
+
+
+# Lazy-loaded Whisper model for transcription
+_whisper_model = None
+
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+        _whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    return _whisper_model
 
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
@@ -264,6 +277,11 @@ class PancakeHandler(SimpleHTTPRequestHandler):
 
         if not self._check_auth():
             self._serve_login()
+            return
+
+        # Transcribe handles raw audio, not JSON
+        if self.path == "/api/transcribe":
+            self._handle_transcribe()
             return
 
         body = self._read_body()
@@ -722,6 +740,26 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         done = json.dumps({"type": "done"})
         self.wfile.write(f"data: {done}\n\n".encode())
         self.wfile.flush()
+
+    def _handle_transcribe(self):
+        """Accept audio blob, transcribe with Whisper, return text."""
+        length = int(self.headers.get("Content-Length", 0))
+        if length == 0 or length > 10 * 1024 * 1024:  # 10MB max
+            self._json_response({"error": "invalid audio size"}, 400)
+            return
+        audio_data = self.rfile.read(length)
+        try:
+            # Write to temp file for faster-whisper
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+                f.write(audio_data)
+                tmp_path = f.name
+            model = _get_whisper_model()
+            segments, _ = model.transcribe(tmp_path, language="en")
+            text = " ".join(seg.text.strip() for seg in segments).strip()
+            os.unlink(tmp_path)
+            self._json_response({"text": text})
+        except Exception as e:
+            self._json_response({"error": str(e)}, 500)
 
     def _handle_save_user_context(self, body):
         text = body.get("text", "")
