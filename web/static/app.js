@@ -1275,7 +1275,6 @@ function initChat() {
   sendBtn.addEventListener("click", chatSend);
 
   // Voice input via MediaRecorder + server-side Whisper transcription
-  const micBtn = document.getElementById("chat-mic");
   const voiceFab = document.getElementById("voice-fab");
   const voiceOverlay = document.getElementById("voice-overlay");
   const voiceTranscript = document.getElementById("voice-transcript");
@@ -1290,30 +1289,21 @@ function initChat() {
   let analyser = null;
   let silenceTimer = null;
   let listening = false;
-  let voiceMode = false; // true = FAB/overlay (auto-send), false = inline
 
-  async function startVoice(overlay) {
-    voiceMode = overlay;
-    micBtn.classList.add("mic-active");
-    if (overlay) {
-      voiceOverlay.classList.add("active");
-      voiceTranscript.textContent = "Listening...";
-      if (!panel.classList.contains("expanded")) {
-        panel.classList.add("expanded");
-      }
-      chatEnsureReady();
-    } else {
-      input.placeholder = "Listening...";
-      input.classList.add("mic-listening");
+  async function startVoice() {
+    voiceOverlay.classList.add("active");
+    voiceTranscript.textContent = "Listening...";
+    if (!panel.classList.contains("expanded")) {
+      panel.classList.add("expanded");
     }
+    chatEnsureReady();
 
     try {
       audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       resetVoiceUI();
       console.warn("Microphone access denied:", e);
-      if (overlay) voiceTranscript.textContent = "Mic access denied";
-      else input.placeholder = "Mic access denied";
+      voiceTranscript.textContent = "Mic access denied";
       setTimeout(resetVoiceUI, 2000);
       return;
     }
@@ -1358,7 +1348,7 @@ function initChat() {
         speechDetected = true;
         clearTimeout(silenceTimer);
         silenceTimer = null;
-        if (voiceMode) voiceTranscript.textContent = "Listening... (speak now)";
+        voiceTranscript.textContent = "Listening... (speak now)";
       } else if (speechDetected && !silenceTimer) {
         // Speech was detected, now silence -- start countdown
         silenceTimer = setTimeout(() => {
@@ -1401,20 +1391,11 @@ function initChat() {
   }
 
   function resetVoiceUI() {
-    micBtn.classList.remove("mic-active");
     voiceOverlay.classList.remove("active");
-    input.classList.remove("mic-listening");
-    input.placeholder = "What's on your mind?";
-    voiceMode = false;
   }
 
   async function transcribeAndHandle(blob) {
-    // Show transcribing state
-    if (voiceMode) {
-      voiceTranscript.textContent = "Transcribing...";
-    } else {
-      input.placeholder = "Transcribing...";
-    }
+    voiceTranscript.textContent = "Transcribing...";
 
     try {
       const resp = await fetch("api/transcribe", {
@@ -1424,21 +1405,10 @@ function initChat() {
       });
       const data = await resp.json();
       const text = (data.text || "").trim();
-
-      if (voiceMode) {
-        resetVoiceUI();
-        if (text) {
-          input.value = text;
-          chatSend();
-        }
-      } else {
-        resetVoiceUI();
-        if (text) {
-          input.value = text;
-          input.style.height = "auto";
-          input.style.height = Math.min(input.scrollHeight, 200) + "px";
-          input.focus();
-        }
+      resetVoiceUI();
+      if (text) {
+        input.value = text;
+        chatSend();
       }
     } catch (e) {
       console.warn("Transcription failed:", e);
@@ -1446,17 +1416,10 @@ function initChat() {
     }
   }
 
-  // FAB button - overlay voice mode with auto-send
+  // FAB button - voice mode with auto-send
   voiceFab.addEventListener("click", () => {
     if (listening) stopVoice(true);
-    else startVoice(true);
-  });
-
-  // Inline mic button
-  micBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (listening) stopVoice(false);
-    else startVoice(false);
+    else startVoice();
   });
 
   // Cancel button in overlay
