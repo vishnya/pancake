@@ -1,0 +1,16 @@
+[project]
+name = "pancake"
+version = "0.1.0"
+description = "Local-first second brain and priority tracker"
+requires-python = ">=3.10"
+dependencies = ["anthropic>=0.40"]
+
+[project.scripts]
+pk = "pancake.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pancake*"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

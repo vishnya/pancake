@@ -1,0 +1,1 @@
+I'm a MLE at meta and I am preparing for interviews to get into the top LLM FAANG type companies -- i'm starting with deep mind and plan to interview in the summer. I am memorizing 140 Neetcode for the interview using the Anki method. I am reading Chip Huyens' AI engineering book and learning it by heart as well, that's why i built the anki screenshot tool

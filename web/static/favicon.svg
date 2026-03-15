@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#1a1a2e"/>
+  <!-- Bottom pancake -->
+  <ellipse cx="16" cy="22" rx="11" ry="3.5" fill="#d4a03c"/>
+  <rect x="5" y="19" width="22" height="3" fill="#d4a03c"/>
+  <ellipse cx="16" cy="19" rx="11" ry="3.5" fill="#e8b84a"/>
+  <!-- Middle pancake -->
+  <ellipse cx="16" cy="17" rx="10" ry="3" fill="#c4903a"/>
+  <rect x="6" y="14.5" width="20" height="2.5" fill="#c4903a"/>
+  <ellipse cx="16" cy="14.5" rx="10" ry="3" fill="#e0a840"/>
+  <!-- Top pancake -->
+  <ellipse cx="16" cy="12.5" rx="9" ry="2.8" fill="#bc8838"/>
+  <rect x="7" y="10" width="18" height="2.5" fill="#bc8838"/>
+  <ellipse cx="16" cy="10" rx="9" ry="2.8" fill="#d89830"/>
+  <!-- Butter pat -->
+  <rect x="13" y="7.5" width="6" height="3" rx="0.8" fill="#fff3b0" opacity="0.9"/>
+  <!-- Syrup drip -->
+  <path d="M22 12 Q24 14 23 17" stroke="#8b5e1a" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.7"/>
+</svg>
