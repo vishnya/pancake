@@ -5,6 +5,12 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-15 | Server
+- Replaced broken Web Speech API voice input with MediaRecorder + server-side Whisper (faster-whisper tiny model)
+- New `/api/transcribe` endpoint accepts audio blobs and returns transcribed text
+- Silence detection via Web Audio API analyser node (auto-stops after 2s silence)
+- Installed faster-whisper + ffmpeg on server
+
 ### 2026-03-15 | Mac + Server
 - Added cookie-based auth system (login page, sessions, HttpOnly cookies with SameSite=Lax)
 - New endpoints: project rename/delete/archive, task undone, redo
