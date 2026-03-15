@@ -111,10 +111,6 @@ h1 {
   background: #1e2d4a;
 }
 
-.task.dragging {
-  opacity: 0.4;
-}
-
 .task input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -165,16 +161,13 @@ h1 {
   font-size: 10px;
   padding: 2px 4px;
   line-height: 1;
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 0.15s, color 0.15s;
   flex-shrink: 0;
 }
-.task:hover .task-move {
-  opacity: 0.6;
-}
 .task-move:hover {
-  color: #a0b4d0 !important;
-  opacity: 1 !important;
+  color: #a0b4d0;
+  opacity: 1;
 }
 
 .task-text {
