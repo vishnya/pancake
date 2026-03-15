@@ -1307,14 +1307,18 @@ function initChat() {
       voiceMode = overlay;
       finalTranscript = overlay ? "" : input.value;
       recognition.continuous = true;
+      // Show immediate feedback before recognition.start() connects to server
+      micBtn.classList.add("mic-active");
       if (overlay) {
         voiceOverlay.classList.add("active");
         voiceTranscript.textContent = "Listening...";
-        // Ensure chat panel is open and session ready
         if (!panel.classList.contains("expanded")) {
           panel.classList.add("expanded");
         }
         chatEnsureReady();
+      } else {
+        input.placeholder = "Connecting...";
+        input.classList.add("mic-listening");
       }
       try {
         recognition.start();
@@ -1366,13 +1370,11 @@ function initChat() {
 
     recognition.addEventListener("start", () => {
       listening = true;
-      micBtn.classList.add("mic-active");
       if (voiceMode) {
         resetSilenceTimer();
       } else {
         input.style.maxHeight = "200px";
         input.placeholder = "Listening...";
-        input.classList.add("mic-listening");
       }
     });
 
