@@ -1348,13 +1348,13 @@ function initChat() {
       }
     });
 
-    // Inline mic button in chat input row
+    // Inline mic button in chat input row (inline mode: text fills input, no overlay)
     micBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (listening) {
-        stopVoice(true);
+        stopVoice(false);
       } else {
-        startVoice(true);
+        startVoice(false);
       }
     });
 
