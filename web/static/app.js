@@ -297,8 +297,13 @@ function buildTaskEl(task, section, index, opts = {}) {
 
   const div = document.createElement("div");
   div.className = "task";
+  div.draggable = true;
   div.dataset.section = section;
   div.dataset.index = index;
+
+  div.addEventListener("dragstart", onDragStart);
+  div.addEventListener("dragend", onDragEnd);
+  attachTouchDrag(div);
 
   // Single click anywhere on row = expand/collapse
   // Double click on text = edit
@@ -1012,6 +1017,9 @@ function buildProjectCard(proj, collapsed) {
   const taskList = document.createElement("div");
   taskList.className = "task-list project-task-list";
   taskList.dataset.section = "project:" + proj.name;
+  taskList.addEventListener("dragover", onDragOver);
+  taskList.addEventListener("dragleave", onDragLeave);
+  taskList.addEventListener("drop", onDrop);
   (proj.tasks || []).forEach((task, i) => {
     const section = "project:" + proj.name;
     taskList.appendChild(buildTaskEl(task, section, i, {
@@ -1679,6 +1687,7 @@ function onDragStart(e) {
   // Find the .task-wrapper or .task element
   const taskEl = e.target.closest(".task");
   if (!taskEl) return;
+  e.stopPropagation(); // prevent project card from starting its own drag
   dragData = {
     section: taskEl.dataset.section,
     index: parseInt(taskEl.dataset.index),

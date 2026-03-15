@@ -111,6 +111,10 @@ h1 {
   background: #1e2d4a;
 }
 
+.task.dragging {
+  opacity: 0.4;
+}
+
 .task input[type="checkbox"] {
   width: 18px;
   height: 18px;
