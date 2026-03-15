@@ -22,3 +22,11 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ### 2026-03-15 | Server
 - Added apple-touch-icon.png and PNG icons (192, 512) for mobile favicon support across all web projects
 - Updated manifest.json with PNG icon entries
+
+### 2026-03-15 | Mac
+- Fixed CSS strikethrough bug: `.done-section .task-text` selector had been broken, applying line-through to ALL tasks
+- Added task move up/down buttons + `/api/task/move` server endpoint (workaround for broken HTML5 drag-and-drop)
+- Added `.task-move` CSS styles with mobile overrides
+- Added `setData()` call in dragstart handler
+- Removed debug "DRAG TEST" div and duplicate CSS blocks from server deploy
+- Deployed clean local copies of style.css, app.js, server.py to server
