@@ -166,20 +166,7 @@ h1 {
 }
 
 .task-move {
-  background: none;
-  border: none;
-  color: #556;
-  cursor: pointer;
-  font-size: 10px;
-  padding: 2px 4px;
-  line-height: 1;
-  opacity: 0.4;
-  transition: opacity 0.15s, color 0.15s;
-  flex-shrink: 0;
-}
-.task-move:hover {
-  color: #a0b4d0;
-  opacity: 1;
+  display: none;
 }
 
 .task-text {
@@ -1458,11 +1445,6 @@ body {
     opacity: 1;
   }
 
-  .task-move {
-    opacity: 0.5;
-    font-size: 14px;
-    padding: 6px 8px;
-  }
 
   .pri-mark {
     font-size: 16px;
