@@ -1306,6 +1306,7 @@ function initChat() {
     function startVoice(overlay) {
       voiceMode = overlay;
       finalTranscript = overlay ? "" : input.value;
+      recognition.continuous = true;
       if (overlay) {
         voiceOverlay.classList.add("active");
         voiceTranscript.textContent = "Listening...";
@@ -1387,6 +1388,9 @@ function initChat() {
           chatSend();
         }
         voiceMode = false;
+      } else if (listening && !voiceMode) {
+        // Inline mode: browser stopped recognition prematurely, restart it
+        try { recognition.start(); } catch (e) {}
       } else {
         listening = false;
         micBtn.classList.remove("mic-active");
