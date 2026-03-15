@@ -458,6 +458,27 @@ function buildTaskEl(task, section, index, opts = {}) {
       div.appendChild(dlClear);
     }
   }
+
+  // Move up/down buttons
+  const moveUp = document.createElement("button");
+  moveUp.className = "task-move task-move-up";
+  moveUp.innerHTML = "&#9650;";
+  moveUp.title = "Move up";
+  moveUp.addEventListener("click", (e) => {
+    e.stopPropagation();
+    api("task/move", { section, index, direction: "up" });
+  });
+  const moveDown = document.createElement("button");
+  moveDown.className = "task-move task-move-down";
+  moveDown.innerHTML = "&#9660;";
+  moveDown.title = "Move down";
+  moveDown.addEventListener("click", (e) => {
+    e.stopPropagation();
+    api("task/move", { section, index, direction: "down" });
+  });
+  div.appendChild(moveUp);
+  div.appendChild(moveDown);
+
   wrapper.appendChild(div);
 
   // Expandable sub-content
@@ -1674,6 +1695,7 @@ function onDragStart(e) {
   const wrapper = taskEl.closest(".task-wrapper") || taskEl;
   wrapper.classList.add("dragging");
   e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", dragData.section + ":" + dragData.index);
 }
 
 function onDragEnd(e) {

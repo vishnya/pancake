@@ -308,6 +308,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._handle_task_deadline(body)
         elif self.path == "/api/task/priority":
             self._handle_task_priority(body)
+        elif self.path == "/api/task/move":
+            self._handle_task_move(body)
         elif self.path == "/api/task/undone":
             self._handle_undone(body)
         elif self.path == "/api/undo":
@@ -580,6 +582,29 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         p, task = self._get_task(body)
         if task:
             task.priority = body.get("priority", 0)
+        _snapshot_and_save(p)
+        self._json_response(self._get_priorities())
+
+    def _handle_task_move(self, body):
+        """Move a task up or down within its section."""
+        p = load()
+        section = body.get("section", "")
+        idx = body.get("index", 0)
+        direction = body.get("direction", "")
+        if section.startswith("project:"):
+            proj = p.get_project(section[8:])
+            if proj:
+                tasks = proj.tasks
+                if direction == "up" and idx > 0:
+                    tasks[idx], tasks[idx - 1] = tasks[idx - 1], tasks[idx]
+                elif direction == "down" and idx < len(tasks) - 1:
+                    tasks[idx], tasks[idx + 1] = tasks[idx + 1], tasks[idx]
+        else:
+            tasks = getattr(p, section, [])
+            if direction == "up" and idx > 0:
+                tasks[idx], tasks[idx - 1] = tasks[idx - 1], tasks[idx]
+            elif direction == "down" and idx < len(tasks) - 1:
+                tasks[idx], tasks[idx + 1] = tasks[idx + 1], tasks[idx]
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 

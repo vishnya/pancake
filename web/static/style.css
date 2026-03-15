@@ -157,6 +157,26 @@ h1 {
   color: #e05555;
 }
 
+.task-move {
+  background: none;
+  border: none;
+  color: #556;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.task:hover .task-move {
+  opacity: 0.6;
+}
+.task-move:hover {
+  color: #a0b4d0 !important;
+  opacity: 1 !important;
+}
+
 .task-text {
   flex: 1;
   font-size: 14px;
@@ -1431,6 +1451,12 @@ body {
 
   .task-priority {
     opacity: 1;
+  }
+
+  .task-move {
+    opacity: 0.5;
+    font-size: 14px;
+    padding: 6px 8px;
   }
 
   .pri-mark {
