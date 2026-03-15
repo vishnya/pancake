@@ -1237,7 +1237,7 @@ function initChat() {
   const closeBtn = document.getElementById("chat-close-btn");
 
   header.addEventListener("click", (e) => {
-    if (e.target === newBtn || e.target === closeBtn) return;
+    if (e.target.closest(".chat-close-btn") || e.target.closest(".chat-new-btn")) return;
     panel.classList.toggle("expanded");
     if (panel.classList.contains("expanded")) {
       chatEnsureReady();

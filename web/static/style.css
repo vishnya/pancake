@@ -1481,6 +1481,9 @@ body {
 
   .chat-close-btn {
     display: flex;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
   }
 
   .chat-input {
