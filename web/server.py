@@ -368,6 +368,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             return
         self.send_response(200)
         self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.end_headers()
         self.wfile.write(path.read_bytes())
 
