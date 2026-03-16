@@ -92,6 +92,18 @@ function render() {
   document.querySelector(".done-header .section-count").textContent = `(${state.done.length})`;
   syncTaskSectionLevel("active-section", "active-list", "active");
   syncTaskSectionLevel("next-section", "next-list", "up_next");
+
+  // Auto-collapse empty sections on mobile
+  if (window.matchMedia("(max-width: 600px)").matches) {
+    if (state.active.length === 0) {
+      document.getElementById("active-section").classList.add("collapsed");
+      sectionExpandLevels.active = 0;
+    }
+    if (state.up_next.length === 0) {
+      document.getElementById("next-section").classList.add("collapsed");
+      sectionExpandLevels.up_next = 0;
+    }
+  }
 }
 
 function syncTaskSectionLevel(sectionId, listId, stateKey) {
