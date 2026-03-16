@@ -1486,6 +1486,10 @@ body {
     font-size: 22px;
   }
 
+  .chat-panel.expanded .chat-header {
+    padding-top: env(safe-area-inset-top);
+  }
+
   .chat-input {
     font-size: 16px; /* prevent iOS zoom on focus */
   }
