@@ -202,6 +202,37 @@ function parseNaturalDate(input) {
   return "";
 }
 
+function parseRecurrence(input) {
+  const text = input.toLowerCase().trim();
+  if (!text) return "";
+  if (text === "daily" || text === "every day" || text === "everyday") return "daily";
+  if (text === "weekdays" || text === "every weekday" || text === "workdays") return "weekdays";
+  if (text === "weekly" || text === "every week") return "weekly";
+  if (text === "monthly" || text === "every month") return "monthly";
+  const m = text.match(/^every\s+(\d+)\s*(d|day|days|w|week|weeks|m|month|months)$/);
+  if (m) return m[1] + m[2][0];
+  // Short forms: "2d", "3w" — but only if prefixed with "every"
+  const m2 = text.match(/^every\s+(\d+[dwm])$/);
+  if (m2) return m2[1];
+  return "";
+}
+
+function recurrenceLabel(rec) {
+  if (!rec) return "";
+  if (rec === "daily") return "daily";
+  if (rec === "weekdays") return "weekdays";
+  if (rec === "weekly") return "weekly";
+  if (rec === "monthly") return "monthly";
+  const m = rec.match(/^(\d+)([dwm])$/);
+  if (m) {
+    const n = m[1], u = m[2];
+    if (u === "d") return `every ${n}d`;
+    if (u === "w") return `every ${n}w`;
+    if (u === "m") return `every ${n}m`;
+  }
+  return rec;
+}
+
 function showDeleteConfirm(taskText, onConfirm) {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
@@ -423,7 +454,11 @@ function buildTaskEl(task, section, index, opts = {}) {
   div.appendChild(del);
   {
     const dlPill = document.createElement("span");
-    if (task.deadline) {
+    if (task.recurrence) {
+      dlPill.className = "task-deadline task-recurring " + (task.deadline ? deadlineClass(task.deadline) : "deadline-normal");
+      dlPill.textContent = recurrenceLabel(task.recurrence);
+      dlPill.title = task.deadline ? deadlineLabel(task.deadline) + " (" + task.deadline + ")" : "recurring";
+    } else if (task.deadline) {
       dlPill.className = "task-deadline " + deadlineClass(task.deadline);
       dlPill.textContent = deadlineLabel(task.deadline);
       dlPill.title = task.deadline;
@@ -437,17 +472,30 @@ function buildTaskEl(task, section, index, opts = {}) {
       const input = document.createElement("input");
       input.type = "text";
       input.className = "task-deadline-picker";
-      input.value = task.deadline || "";
-      input.placeholder = "tomorrow, fri, 3d...";
+      input.value = task.recurrence || task.deadline || "";
+      input.placeholder = "daily, weekly, tomorrow...";
       dlPill.replaceWith(input);
       input.focus();
-      if (task.deadline) input.select();
+      if (input.value) input.select();
       const commit = () => {
-        const parsed = parseNaturalDate(input.value);
-        if (parsed) {
-          api("task/deadline", { section, index, deadline: parsed });
+        const val = input.value.trim();
+        if (!val) {
+          // Clear both
+          api("task/recurrence", { section, index, recurrence: "" });
+          api("task/deadline", { section, index, deadline: "" });
+          return;
+        }
+        const rec = parseRecurrence(val);
+        if (rec) {
+          api("task/recurrence", { section, index, recurrence: rec });
         } else {
-          input.replaceWith(dlPill);
+          const parsed = parseNaturalDate(val);
+          if (parsed) {
+            if (task.recurrence) api("task/recurrence", { section, index, recurrence: "" });
+            api("task/deadline", { section, index, deadline: parsed });
+          } else {
+            input.replaceWith(dlPill);
+          }
         }
       };
       input.addEventListener("keydown", (ev) => {
@@ -458,13 +506,14 @@ function buildTaskEl(task, section, index, opts = {}) {
       input.addEventListener("blur", commit);
     });
     div.appendChild(dlPill);
-    if (task.deadline) {
+    if (task.deadline || task.recurrence) {
       const dlClear = document.createElement("button");
       dlClear.className = "task-deadline-clear";
       dlClear.textContent = "\u00d7";
-      dlClear.title = "Remove deadline";
+      dlClear.title = task.recurrence ? "Remove recurrence" : "Remove deadline";
       dlClear.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (task.recurrence) api("task/recurrence", { section, index, recurrence: "" });
         api("task/deadline", { section, index, deadline: "" });
       });
       div.appendChild(dlClear);

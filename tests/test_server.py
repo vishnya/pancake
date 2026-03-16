@@ -526,7 +526,7 @@ def test_task_dict_roundtrip(server):
     save(p)
     data = _api(server, "priorities")
     t = data["active"][0]
-    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0}
+    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0, "recurrence": ""}
 
 
 # =============================================================================
@@ -990,6 +990,79 @@ def test_auth_api_post_requires_auth(auth_server):
                     body={"text": "sneak", "project": "X"})
     html = resp.read().decode()
     assert "Log in" in html or "password" in html
+
+
+# =============================================================================
+# POST /api/task/recurrence
+# =============================================================================
+
+def test_set_recurrence(server):
+    _seed()
+    data = _api(server, "task/recurrence", {"section": "active", "index": 0, "recurrence": "daily"})
+    assert data["active"][0]["recurrence"] == "daily"
+    assert data["active"][0]["deadline"] != ""  # auto-sets deadline
+
+
+def test_clear_recurrence(server):
+    p = Priorities(
+        active=[Task(text="task", project="P", recurrence="daily", deadline="2026-03-16")],
+        projects=[ProjectInfo(name="P")],
+    )
+    save(p)
+    data = _api(server, "task/recurrence", {"section": "active", "index": 0, "recurrence": ""})
+    assert data["active"][0]["recurrence"] == ""
+
+
+def test_set_recurrence_on_project_task(server):
+    _seed(projects=[ProjectInfo(name="Test", tasks=[Task(text="pt", project="Test")])])
+    data = _api(server, "task/recurrence", {"section": "project:Test", "index": 0, "recurrence": "weekly"})
+    assert data["projects"][0]["tasks"][0]["recurrence"] == "weekly"
+
+
+def test_recurring_task_done_resets_in_place(server):
+    """Checking off a recurring task should NOT move it to Done -- it resets with a new deadline."""
+    p = Priorities(
+        active=[Task(text="Anki", project="SP", recurrence="daily", deadline="2026-03-16")],
+        projects=[ProjectInfo(name="SP")],
+    )
+    save(p)
+    data = _api(server, "task/done", {"section": "active", "index": 0})
+    assert len(data["active"]) == 1  # still in active
+    assert len(data["done"]) == 0  # NOT in done
+    assert data["active"][0]["deadline"] != "2026-03-16"  # deadline bumped
+
+
+def test_nonrecurring_task_done_moves_to_done(server):
+    """Non-recurring tasks should still move to Done as before."""
+    p = Priorities(
+        active=[Task(text="one-off", project="P")],
+        projects=[ProjectInfo(name="P")],
+    )
+    save(p)
+    data = _api(server, "task/done", {"section": "active", "index": 0})
+    assert len(data["active"]) == 0
+    assert len(data["done"]) == 1
+
+
+def test_recurring_project_task_done_resets(server):
+    """Recurring project task should reset in place, not move to Done."""
+    p = Priorities(
+        projects=[ProjectInfo(name="SP", tasks=[
+            Task(text="Anki", project="SP", recurrence="daily", deadline="2026-03-16"),
+        ])],
+    )
+    save(p)
+    data = _api(server, "project/task/done", {"name": "SP", "index": 0})
+    assert len(data["projects"][0]["tasks"]) == 1  # still in project
+    assert len(data["done"]) == 0
+    assert data["projects"][0]["tasks"][0]["deadline"] != "2026-03-16"
+
+
+def test_recurrence_in_task_dict(server):
+    p = Priorities(active=[Task(text="t", recurrence="weekly", deadline="2026-03-20")])
+    save(p)
+    data = _api(server, "priorities")
+    assert data["active"][0]["recurrence"] == "weekly"
 
 
 def test_auth_expired_session(auth_server):

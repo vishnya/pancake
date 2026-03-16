@@ -6,7 +6,7 @@ import tempfile
 _tmpdir = tempfile.mkdtemp()
 os.environ["PANCAKE_VAULT"] = os.path.join(_tmpdir, "PRIORITIES.md")
 
-from pancake.priorities import parse, render, load, save, Priorities, Task, ProjectInfo
+from pancake.priorities import parse, render, load, save, Priorities, Task, ProjectInfo, next_due_date
 
 
 SAMPLE = """# Priorities
@@ -472,3 +472,89 @@ def test_priority_roundtrip():
 def test_priority_default_is_zero():
     t = Task(text="test")
     assert t.priority == 0
+
+
+# === Recurrence tests ===
+
+def test_parse_recurrence():
+    content = "## Active\n- [ ] Anki @due(2026-03-16) @every(daily)\n"
+    p = parse(content)
+    assert p.active[0].recurrence == "daily"
+    assert p.active[0].deadline == "2026-03-16"
+    assert p.active[0].text == "Anki"
+
+
+def test_parse_recurrence_with_priority():
+    content = "## Active\n- [ ] task @due(2026-03-16) @every(weekly) @p(1)\n"
+    p = parse(content)
+    assert p.active[0].recurrence == "weekly"
+    assert p.active[0].priority == 1
+    assert p.active[0].deadline == "2026-03-16"
+
+
+def test_render_recurrence():
+    p = Priorities(active=[Task(text="Anki", deadline="2026-03-16", recurrence="daily")])
+    text = render(p)
+    assert "@every(daily)" in text
+    assert "@due(2026-03-16)" in text
+
+
+def test_recurrence_roundtrip():
+    p = Priorities(
+        active=[Task(text="Anki", deadline="2026-03-16", recurrence="daily", priority=1)],
+        up_next=[Task(text="Review", recurrence="weekly", deadline="2026-03-20")],
+    )
+    text = render(p)
+    p2 = parse(text)
+    assert p2.active[0].recurrence == "daily"
+    assert p2.active[0].priority == 1
+    assert p2.active[0].deadline == "2026-03-16"
+    assert p2.up_next[0].recurrence == "weekly"
+
+
+def test_no_recurrence_by_default():
+    t = Task(text="test")
+    assert t.recurrence == ""
+
+
+def test_next_due_date_daily():
+    result = next_due_date("2026-01-01", "daily")
+    # Should be at least tomorrow, not based on old deadline
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    assert result > today or result == today  # next day from max(today, deadline)
+
+
+def test_next_due_date_weekly():
+    from datetime import datetime, timedelta
+    today = datetime.now().strftime("%Y-%m-%d")
+    result = next_due_date(today, "weekly")
+    expected = (datetime.now() + timedelta(weeks=1)).strftime("%Y-%m-%d")
+    assert result == expected
+
+
+def test_next_due_date_2d():
+    from datetime import datetime, timedelta
+    today = datetime.now().strftime("%Y-%m-%d")
+    result = next_due_date(today, "2d")
+    expected = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
+    assert result == expected
+
+
+def test_next_due_date_weekdays_skips_weekend():
+    # Friday -> should skip to Monday
+    result = next_due_date("2026-03-13", "weekdays")  # 2026-03-13 is a Friday
+    assert result >= "2026-03-16"  # Monday
+
+
+def test_next_due_date_monthly():
+    from datetime import datetime, timedelta
+    today = datetime.now().strftime("%Y-%m-%d")
+    result = next_due_date(today, "monthly")
+    assert result > today
+
+
+def test_render_no_recurrence():
+    p = Priorities(active=[Task(text="normal")])
+    text = render(p)
+    assert "@every(" not in text

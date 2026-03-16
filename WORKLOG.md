@@ -6,6 +6,15 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-16 | Server
+- Added recurring tasks: `@every(daily|weekly|2d|weekdays|monthly)` in PRIORITIES.md
+- Recurring tasks reset in-place when checked off (new deadline, stays in section)
+- Combined pill UI: shows recurrence label colored by deadline urgency, accepts both dates and recurrence
+- Fixed chat panel bleed-through (display:none when not expanded), nuked service worker, no-cache headers
+- Fixed mobile spacing: tighter task rows, auto-collapse empty sections, smaller controls
+- Fixed static file serving with query params (cache busting), server sends no-cache headers
+- 246 tests pass (57 priorities + 101 server + rest)
+
+### 2026-03-16 | Server
 - Fix chat panel header hidden behind status bar on mobile (close button was untappable)
 
 ### 2026-03-16 | Server

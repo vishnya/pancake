@@ -15,7 +15,7 @@ import fcntl
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 DEFAULT_VAULT_PATH = os.path.expanduser("~/Obsidian/main/PRIORITIES.md")
@@ -38,13 +38,15 @@ class Task:
     notes: list[str] = field(default_factory=list)
     deadline: str = ""  # ISO date string, e.g. "2026-03-20"
     priority: int = 0  # 0=normal, 1=important (!), 2=critical (!!)
+    recurrence: str = ""  # e.g. "daily", "2d", "weekly", "weekdays", "monthly"
 
     def to_lines(self) -> list[str]:
         check = "x" if self.done else " "
         tag = f"[{self.project}] " if self.project else ""
         dl = f" @due({self.deadline})" if self.deadline else ""
+        rec = f" @every({self.recurrence})" if self.recurrence else ""
         pri = f" @p({self.priority})" if self.priority else ""
-        lines = [f"- [{check}] {tag}{self.text}{dl}{pri}"]
+        lines = [f"- [{check}] {tag}{self.text}{dl}{rec}{pri}"]
         for note in self.notes:
             lines.append(f"  - note: {note}")
         return lines
@@ -115,6 +117,11 @@ def _parse_task(line: str) -> Task | None:
     if due_match:
         deadline = due_match.group(1)
         text = text[:due_match.start()] + text[due_match.end():]
+    recurrence = ""
+    rec_match = re.search(r"\s*@every\(([^)]+)\)", text)
+    if rec_match:
+        recurrence = rec_match.group(1)
+        text = text[:rec_match.start()] + text[rec_match.end():]
     pri_match = re.search(r"\s*@p\(([12])\)", text)
     if pri_match:
         priority = int(pri_match.group(1))
@@ -125,7 +132,49 @@ def _parse_task(line: str) -> Task | None:
         done=m.group(1) == "x",
         deadline=deadline,
         priority=priority,
+        recurrence=recurrence,
     )
+
+
+def next_due_date(deadline: str, recurrence: str) -> str:
+    """Compute the next due date for a recurring task.
+
+    Base date is max(today, deadline) + interval, so missed days don't cascade.
+    """
+    today = datetime.now().date()
+    if deadline:
+        base = max(today, datetime.strptime(deadline, "%Y-%m-%d").date())
+    else:
+        base = today
+
+    rec = recurrence.lower().strip()
+    if rec in ("daily", "1d"):
+        result = base + timedelta(days=1)
+    elif rec == "weekdays":
+        result = base + timedelta(days=1)
+        while result.weekday() >= 5:  # skip Sat(5), Sun(6)
+            result += timedelta(days=1)
+    elif rec in ("weekly", "1w"):
+        result = base + timedelta(weeks=1)
+    elif rec in ("monthly", "1m"):
+        month = base.month % 12 + 1
+        year = base.year + (1 if base.month == 12 else 0)
+        day = min(base.day, 28)  # safe for all months
+        result = base.replace(year=year, month=month, day=day)
+    elif m := re.match(r"(\d+)d", rec):
+        result = base + timedelta(days=int(m.group(1)))
+    elif m := re.match(r"(\d+)w", rec):
+        result = base + timedelta(weeks=int(m.group(1)))
+    elif m := re.match(r"(\d+)m", rec):
+        months = int(m.group(1))
+        month = (base.month - 1 + months) % 12 + 1
+        year = base.year + (base.month - 1 + months) // 12
+        day = min(base.day, 28)
+        result = base.replace(year=year, month=month, day=day)
+    else:
+        result = base + timedelta(days=1)  # fallback: daily
+
+    return result.strftime("%Y-%m-%d")
 
 
 def parse(content: str) -> Priorities:

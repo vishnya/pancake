@@ -19,7 +19,7 @@ from socketserver import ThreadingMixIn
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path
+from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date
 from pancake.context import build_context
 from pancake.chat import is_available as chat_is_available, stream_response, stream_response_with_tools
 import pancake.tools
@@ -332,6 +332,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._handle_task_deadline(body)
         elif self.path == "/api/task/priority":
             self._handle_task_priority(body)
+        elif self.path == "/api/task/recurrence":
+            self._handle_task_recurrence(body)
         elif self.path == "/api/task/move":
             self._handle_task_move(body)
         elif self.path == "/api/task/undone":
@@ -375,13 +377,15 @@ class PancakeHandler(SimpleHTTPRequestHandler):
     @staticmethod
     def _task_dict(t):
         return {"text": t.text, "project": t.project, "done": t.done,
-                "notes": t.notes, "deadline": t.deadline, "priority": t.priority}
+                "notes": t.notes, "deadline": t.deadline, "priority": t.priority,
+                "recurrence": t.recurrence}
 
     @staticmethod
     def _task_from_dict(t):
         return Task(text=t["text"], project=t.get("project", ""), done=t.get("done", False),
                      notes=t.get("notes", []),
-                     deadline=t.get("deadline", ""), priority=t.get("priority", 0))
+                     deadline=t.get("deadline", ""), priority=t.get("priority", 0),
+                     recurrence=t.get("recurrence", ""))
 
     def _get_priorities(self) -> dict:
         p = load()
@@ -409,13 +413,21 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         section = body["section"]
         idx = body["index"]
         if section == "active" and idx < len(p.active):
-            task = p.active.pop(idx)
-            task.done = True
-            p.done.insert(0, task)
+            task = p.active[idx]
+            if task.recurrence:
+                task.deadline = next_due_date(task.deadline, task.recurrence)
+            else:
+                task = p.active.pop(idx)
+                task.done = True
+                p.done.insert(0, task)
         elif section == "up_next" and idx < len(p.up_next):
-            task = p.up_next.pop(idx)
-            task.done = True
-            p.done.insert(0, task)
+            task = p.up_next[idx]
+            if task.recurrence:
+                task.deadline = next_due_date(task.deadline, task.recurrence)
+            else:
+                task = p.up_next.pop(idx)
+                task.done = True
+                p.done.insert(0, task)
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 
@@ -558,9 +570,13 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         p = load()
         proj = p.get_project(body["name"])
         if proj and body["index"] < len(proj.tasks):
-            task = proj.tasks.pop(body["index"])
-            task.done = True
-            p.done.insert(0, task)
+            task = proj.tasks[body["index"]]
+            if task.recurrence:
+                task.deadline = next_due_date(task.deadline, task.recurrence)
+            else:
+                task = proj.tasks.pop(body["index"])
+                task.done = True
+                p.done.insert(0, task)
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 
@@ -607,6 +623,17 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         p, task = self._get_task(body)
         if task:
             task.priority = body.get("priority", 0)
+        _snapshot_and_save(p)
+        self._json_response(self._get_priorities())
+
+    def _handle_task_recurrence(self, body):
+        p, task = self._get_task(body)
+        if task:
+            task.recurrence = body.get("recurrence", "")
+            # Auto-set deadline to today if setting recurrence without a deadline
+            if task.recurrence and not task.deadline:
+                from datetime import datetime
+                task.deadline = datetime.now().strftime("%Y-%m-%d")
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 

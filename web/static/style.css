@@ -364,6 +364,15 @@ h1 {
   opacity: 1;
 }
 
+.task-recurring {
+  font-style: italic;
+}
+
+.task-recurring::before {
+  content: "\21BB ";
+  font-style: normal;
+}
+
 .task-deadline-clear {
   opacity: 0;
   background: none;
