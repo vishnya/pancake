@@ -1249,6 +1249,8 @@ function initChat() {
     panel.classList.remove("expanded");
     const fab = document.getElementById("fab-add");
     if (fab) fab.style.display = "";
+    const voiceFab = document.getElementById("voice-fab");
+    if (voiceFab) voiceFab.style.display = "";
   });
 
   newBtn.addEventListener("click", (e) => {
@@ -1995,6 +1997,8 @@ function attachProjectTouchDrag(el) {
     panel.classList.add("expanded");
     chatEnsureReady();
     fab.style.display = "none";
+    const voiceFab = document.getElementById("voice-fab");
+    if (voiceFab) voiceFab.style.display = "none";
     // Focus the chat input
     setTimeout(() => document.getElementById("chat-input").focus(), 200);
   });
