@@ -208,32 +208,35 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         return False
 
     def do_GET(self):
+        # Strip query string for routing
+        path_no_qs = self.path.split("?")[0]
+
         # Auth-exempt routes
-        if self.path == "/static/favicon.svg":
+        if path_no_qs == "/static/favicon.svg":
             self._serve_file("static/favicon.svg", "image/svg+xml")
             return
-        if self.path == "/apple-touch-icon.png" or self.path == "/static/apple-touch-icon.png":
+        if path_no_qs == "/apple-touch-icon.png" or path_no_qs == "/static/apple-touch-icon.png":
             self._serve_file("static/apple-touch-icon.png", "image/png")
             return
-        if self.path == "/manifest.json":
+        if path_no_qs == "/manifest.json":
             self._serve_file("static/manifest.json", "application/json")
             return
-        if self.path == "/static/sw.js":
+        if path_no_qs == "/static/sw.js":
             self._serve_file("static/sw.js", "application/javascript")
             return
 
         # Static assets are auth-exempt (Caddy shared auth protects the site)
-        if self.path == "/static/app.js":
+        if path_no_qs == "/static/app.js":
             self._serve_file("static/app.js", "application/javascript")
             return
-        if self.path == "/static/style.css":
+        if path_no_qs == "/static/style.css":
             self._serve_file("static/style.css", "text/css")
             return
 
         if not self._require_auth():
             return
 
-        if self.path == "/" or self.path == "/index.html":
+        if path_no_qs == "/" or path_no_qs == "/index.html":
             self._serve_file("templates/index.html", "text/html")
         elif self.path == "/api/priorities":
             self._json_response(self._get_priorities())
