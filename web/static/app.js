@@ -506,18 +506,20 @@ function buildTaskEl(task, section, index, opts = {}) {
       input.addEventListener("blur", commit);
     });
     div.appendChild(dlPill);
+    const dlClear = document.createElement("button");
+    dlClear.className = "task-deadline-clear";
+    dlClear.textContent = "\u00d7";
     if (task.deadline || task.recurrence) {
-      const dlClear = document.createElement("button");
-      dlClear.className = "task-deadline-clear";
-      dlClear.textContent = "\u00d7";
       dlClear.title = task.recurrence ? "Remove recurrence" : "Remove deadline";
       dlClear.addEventListener("click", (e) => {
         e.stopPropagation();
         if (task.recurrence) api("task/recurrence", { section, index, recurrence: "" });
         api("task/deadline", { section, index, deadline: "" });
       });
-      div.appendChild(dlClear);
+    } else {
+      dlClear.style.visibility = "hidden";
     }
+    div.appendChild(dlClear);
   }
 
   // Move up/down buttons
