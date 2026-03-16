@@ -1467,8 +1467,9 @@ body {
   .chat-panel {
     width: 100vw;
     right: -100vw;
-    height: 100dvh;
-    height: -webkit-fill-available;
+    top: 0;
+    bottom: 0;
+    height: auto;
   }
 
   .chat-panel.expanded {
@@ -1488,7 +1489,7 @@ body {
   }
 
   .chat-panel.expanded .chat-header {
-    padding-top: max(env(safe-area-inset-top), 28px);
+    padding-top: max(env(safe-area-inset-top), 44px);
   }
 
   .chat-input {
