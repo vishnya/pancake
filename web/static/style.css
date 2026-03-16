@@ -1434,6 +1434,7 @@ body {
   .task {
     padding: 6px 10px;
     gap: 4px;
+    border-left: 4px solid red;
   }
 
   .task input[type="checkbox"] {
