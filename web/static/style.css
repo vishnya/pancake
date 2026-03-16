@@ -1427,13 +1427,13 @@ body {
   }
 
   .task {
-    padding: 12px 10px;
-    gap: 8px;
+    padding: 8px 10px;
+    gap: 6px;
   }
 
   .task input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
 
   .task-delete {
@@ -1448,10 +1448,10 @@ body {
 
 
   .pri-mark {
-    font-size: 16px;
-    padding: 8px 6px;
-    min-width: 28px;
-    min-height: 28px;
+    font-size: 14px;
+    padding: 4px 4px;
+    min-width: 22px;
+    min-height: 22px;
     text-align: center;
   }
 
