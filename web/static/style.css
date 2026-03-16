@@ -1531,7 +1531,7 @@ body {
   }
 
   .task-deadline-empty {
-    display: none;
+    opacity: 0.3;
   }
 
   .task-text {
