@@ -1491,11 +1491,12 @@ body {
   }
 
   .chat-panel.expanded {
+    display: flex;
     right: 0;
     background: #1a1a2e;
   }
 
-  .chat-panel:not(.expanded) .chat-header {
+  .chat-panel:not(.expanded) {
     display: none;
   }
 
