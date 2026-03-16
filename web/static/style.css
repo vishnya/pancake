@@ -1443,6 +1443,11 @@ body {
   .task {
     padding: 4px 8px;
     gap: 4px;
+    align-items: flex-start;
+  }
+
+  .task input[type="checkbox"] {
+    margin-top: 2px;
   }
 
   .task input[type="checkbox"] {
