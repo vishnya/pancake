@@ -1,4 +1,4 @@
-const CACHE_NAME = "pancake-v1";
+const CACHE_NAME = "pancake-v2";
 const STATIC_ASSETS = [
   "./",
   "static/app.js",
