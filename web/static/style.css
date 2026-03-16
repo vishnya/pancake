@@ -1432,9 +1432,8 @@ body {
   }
 
   .task {
-    padding: 6px 10px;
+    padding: 4px 8px;
     gap: 4px;
-    border-left: 4px solid red;
   }
 
   .task input[type="checkbox"] {
@@ -1521,8 +1520,12 @@ body {
     font-size: 16px;
   }
 
+  .task-deadline-empty {
+    display: none;
+  }
+
   .task-text {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .task-deadline-empty {
