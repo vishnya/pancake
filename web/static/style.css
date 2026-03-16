@@ -1427,36 +1427,44 @@ body {
   }
 
   .task {
-    padding: 8px 10px;
-    gap: 6px;
+    padding: 6px 10px;
+    gap: 4px;
   }
 
   .task input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 
   .task-delete {
     opacity: 0.5;
-    padding: 6px 10px;
-    font-size: 16px;
+    padding: 4px 8px;
+    font-size: 14px;
   }
 
   .task-priority {
     opacity: 1;
+    gap: 0;
   }
 
-
   .pri-mark {
-    font-size: 14px;
-    padding: 4px 4px;
-    min-width: 22px;
-    min-height: 22px;
+    font-size: 12px;
+    padding: 2px 3px;
+    min-width: 18px;
+    min-height: 18px;
     text-align: center;
   }
 
+  .section {
+    margin-bottom: 16px;
+  }
+
   .project-header {
-    padding: 12px;
+    padding: 10px;
+  }
+
+  .project-body {
+    padding: 0 8px 8px 24px;
   }
 
   .project-archive-btn {
