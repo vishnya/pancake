@@ -6,6 +6,9 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-16 | Server
+- Fix chat panel header hidden behind status bar on mobile (close button was untappable)
+
+### 2026-03-16 | Server
 - Fixed inline mic (Web Speech API) for web Think panel, then replaced with Whisper-based voice (from phone session)
 - Set up system watchdog (/root/repos/watchdog.sh, cron every 5min): checks services, HTTP health, restarts, escalates to Claude for complex issues
 - Changed claude-web and pancake systemd to Restart=always (were on-failure, missed clean exits)
