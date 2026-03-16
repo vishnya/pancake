@@ -212,6 +212,9 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         if self.path == "/static/favicon.svg":
             self._serve_file("static/favicon.svg", "image/svg+xml")
             return
+        if self.path == "/apple-touch-icon.png" or self.path == "/static/apple-touch-icon.png":
+            self._serve_file("static/apple-touch-icon.png", "image/png")
+            return
         if self.path == "/manifest.json":
             self._serve_file("static/manifest.json", "application/json")
             return
