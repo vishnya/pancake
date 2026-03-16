@@ -5,6 +5,12 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-16 | Server
+- Fixed inline mic (Web Speech API) for web Think panel, then replaced with Whisper-based voice (from phone session)
+- Set up system watchdog (/root/repos/watchdog.sh, cron every 5min): checks services, HTTP health, restarts, escalates to Claude for complex issues
+- Changed claude-web and pancake systemd to Restart=always (were on-failure, missed clean exits)
+- Added no-cache headers for /code/ route in Caddy
+
 ### 2026-03-15 | Server
 - Replaced broken Web Speech API voice input with MediaRecorder + server-side Whisper (faster-whisper tiny model)
 - New `/api/transcribe` endpoint accepts audio blobs and returns transcribed text
