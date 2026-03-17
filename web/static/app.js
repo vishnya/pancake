@@ -1,5 +1,28 @@
 let state = { active: [], up_next: [], inbox: [], projects: [], done: [], notes: [] };
 
+// Cached profile members for assignee dropdown
+let _profileMembers = null;
+let _profileMembersLoading = false;
+
+async function loadProfileMembers() {
+  if (_profileMembers !== null) return _profileMembers;
+  if (_profileMembersLoading) return [];
+  _profileMembersLoading = true;
+  try {
+    const res = await fetch("api/profile/members");
+    const data = await res.json();
+    _profileMembers = data.members || [];
+  } catch (e) {
+    _profileMembers = [];
+  }
+  _profileMembersLoading = false;
+  return _profileMembers;
+}
+
+function invalidateMembersCache() {
+  _profileMembers = null;
+}
+
 // Service worker registration
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("static/sw.js");
@@ -439,6 +462,88 @@ function buildTaskEl(task, section, index, opts = {}) {
       proj.style.color = color.fg;
     }
     div.appendChild(proj);
+  }
+
+  // Assignee pill
+  if (!section.startsWith("project:")) {
+    const assigneeContainer = document.createElement("span");
+    assigneeContainer.style.position = "relative";
+    assigneeContainer.style.flexShrink = "0";
+
+    const assigneePill = document.createElement("span");
+    if (task.assignee) {
+      assigneePill.className = "task-assignee";
+      assigneePill.textContent = task.assignee;
+    } else {
+      assigneePill.className = "task-assignee task-assignee-empty";
+      assigneePill.textContent = "assign";
+    }
+    assigneePill.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // Close any existing dropdowns
+      document.querySelectorAll(".task-assignee-dropdown").forEach((d) => d.remove());
+      const members = await loadProfileMembers();
+      const dropdown = document.createElement("div");
+      dropdown.className = "task-assignee-dropdown";
+      members.forEach((m) => {
+        const item = document.createElement("div");
+        item.className = "task-assignee-dropdown-item";
+        if (m.account_id === task.assignee) item.classList.add("active");
+        item.textContent = m.display_name || m.account_id;
+        item.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          dropdown.remove();
+          api("task/assign", { section, index, assignee: m.account_id });
+        });
+        dropdown.appendChild(item);
+      });
+      if (task.assignee) {
+        const unassign = document.createElement("div");
+        unassign.className = "task-assignee-dropdown-item unassign";
+        unassign.textContent = "Unassign";
+        unassign.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          dropdown.remove();
+          api("task/assign", { section, index, assignee: "" });
+        });
+        dropdown.appendChild(unassign);
+      }
+      assigneeContainer.appendChild(dropdown);
+      // Close on outside click
+      const closeHandler = (ev) => {
+        if (!dropdown.contains(ev.target)) {
+          dropdown.remove();
+          document.removeEventListener("click", closeHandler);
+        }
+      };
+      setTimeout(() => document.addEventListener("click", closeHandler), 0);
+    });
+    assigneeContainer.appendChild(assigneePill);
+
+    // Remind button (envelope icon) if assigned
+    if (task.assignee) {
+      const remindBtn = document.createElement("button");
+      remindBtn.className = "task-remind-btn";
+      remindBtn.innerHTML = "&#9993;";
+      remindBtn.title = "Send reminder to " + task.assignee;
+      remindBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fetch("api/task/remind", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ section, index }),
+        }).then((res) => res.json()).then((data) => {
+          if (data.ok) {
+            remindBtn.textContent = "Sent!";
+            remindBtn.style.color = "#5cb85c";
+            remindBtn.style.opacity = "1";
+            setTimeout(() => { remindBtn.innerHTML = "&#9993;"; remindBtn.style.color = ""; remindBtn.style.opacity = ""; }, 2000);
+          }
+        });
+      });
+      assigneeContainer.appendChild(remindBtn);
+    }
+    div.appendChild(assigneeContainer);
   }
 
   const del = document.createElement("button");
@@ -914,6 +1019,88 @@ function buildDoneRow(task) {
     proj.style.background = doneColor.bg;
     proj.style.color = doneColor.fg;
     proj.style.opacity = "0.5";
+  }
+
+  // Assignee pill
+  if (!section.startsWith("project:")) {
+    const assigneeContainer = document.createElement("span");
+    assigneeContainer.style.position = "relative";
+    assigneeContainer.style.flexShrink = "0";
+
+    const assigneePill = document.createElement("span");
+    if (task.assignee) {
+      assigneePill.className = "task-assignee";
+      assigneePill.textContent = task.assignee;
+    } else {
+      assigneePill.className = "task-assignee task-assignee-empty";
+      assigneePill.textContent = "assign";
+    }
+    assigneePill.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // Close any existing dropdowns
+      document.querySelectorAll(".task-assignee-dropdown").forEach((d) => d.remove());
+      const members = await loadProfileMembers();
+      const dropdown = document.createElement("div");
+      dropdown.className = "task-assignee-dropdown";
+      members.forEach((m) => {
+        const item = document.createElement("div");
+        item.className = "task-assignee-dropdown-item";
+        if (m.account_id === task.assignee) item.classList.add("active");
+        item.textContent = m.display_name || m.account_id;
+        item.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          dropdown.remove();
+          api("task/assign", { section, index, assignee: m.account_id });
+        });
+        dropdown.appendChild(item);
+      });
+      if (task.assignee) {
+        const unassign = document.createElement("div");
+        unassign.className = "task-assignee-dropdown-item unassign";
+        unassign.textContent = "Unassign";
+        unassign.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          dropdown.remove();
+          api("task/assign", { section, index, assignee: "" });
+        });
+        dropdown.appendChild(unassign);
+      }
+      assigneeContainer.appendChild(dropdown);
+      // Close on outside click
+      const closeHandler = (ev) => {
+        if (!dropdown.contains(ev.target)) {
+          dropdown.remove();
+          document.removeEventListener("click", closeHandler);
+        }
+      };
+      setTimeout(() => document.addEventListener("click", closeHandler), 0);
+    });
+    assigneeContainer.appendChild(assigneePill);
+
+    // Remind button (envelope icon) if assigned
+    if (task.assignee) {
+      const remindBtn = document.createElement("button");
+      remindBtn.className = "task-remind-btn";
+      remindBtn.innerHTML = "&#9993;";
+      remindBtn.title = "Send reminder to " + task.assignee;
+      remindBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fetch("api/task/remind", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ section, index }),
+        }).then((res) => res.json()).then((data) => {
+          if (data.ok) {
+            remindBtn.textContent = "Sent!";
+            remindBtn.style.color = "#5cb85c";
+            remindBtn.style.opacity = "1";
+            setTimeout(() => { remindBtn.innerHTML = "&#9993;"; remindBtn.style.color = ""; remindBtn.style.opacity = ""; }, 2000);
+          }
+        });
+      });
+      assigneeContainer.appendChild(remindBtn);
+    }
+    div.appendChild(assigneeContainer);
   }
 
   const del = document.createElement("button");
