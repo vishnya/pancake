@@ -1558,6 +1558,28 @@ h1 {
   border-color: #e05555;
 }
 
+
+/* Recurring task cleared for current period */
+.task-recurring-cleared {
+  opacity: 0.45;
+}
+
+.task-recurring-cleared .task-text {
+  text-decoration: line-through;
+  text-decoration-color: #555;
+}
+
+.task-recurring-cleared .task-deadline {
+  color: #556 !important;
+  background: #1e2230 !important;
+  border-color: #2a3040 !important;
+}
+
+.task-priority-dot.cleared {
+  border-color: #2a3040;
+  color: #2a3040;
+}
+
 /* Touch-friendly defaults */
 * { touch-action: manipulation; }
 

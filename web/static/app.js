@@ -397,6 +397,13 @@ function buildTaskEl(task, section, index, opts = {}) {
 
   const div = document.createElement("div");
   div.className = "task";
+  // Recurring task cleared for current period? (deadline is in the future)
+  const isRecurringCleared = task.recurrence && task.deadline && (() => {
+    const d = new Date(task.deadline + "T00:00:00");
+    const now = new Date(); now.setHours(0,0,0,0);
+    return d > now;
+  })();
+  if (isRecurringCleared) div.classList.add("task-recurring-cleared");
   div.draggable = true;
   div.dataset.section = section;
   div.dataset.index = index;
@@ -579,7 +586,8 @@ function buildTaskEl(task, section, index, opts = {}) {
   // Priority indicator (single tappable dot, cycles 0→1→2→0)
   const pri = document.createElement("span");
   pri.className = "task-priority-dot";
-  if (task.priority === 2) { pri.classList.add("p2"); pri.textContent = "!!"; }
+  if (isRecurringCleared) { pri.textContent = ""; pri.classList.add("cleared"); }
+  else if (task.priority === 2) { pri.classList.add("p2"); pri.textContent = "!!"; }
   else if (task.priority === 1) { pri.classList.add("p1"); pri.textContent = "!"; }
   else { pri.textContent = ""; }
   pri.title = task.priority === 0 ? "Set priority" : task.priority === 1 ? "Important" : "Critical";
