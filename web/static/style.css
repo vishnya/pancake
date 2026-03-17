@@ -54,6 +54,7 @@ h1 {
   cursor: pointer;
   user-select: none;
   padding: 6px 0;
+  min-height: 38px;
 }
 
 .section-header:hover {
@@ -113,6 +114,8 @@ h1 {
   border-radius: 6px;
   cursor: grab;
   transition: background 0.1s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .task:hover {
@@ -171,6 +174,7 @@ h1 {
 
 .task-text {
   flex: 1;
+  min-width: 0;
   font-size: 14px;
   line-height: 1.4;
   outline: none;
@@ -306,7 +310,7 @@ h1 {
 
 /* Deadline pills */
 .task-deadline {
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 6px;
   border-radius: 8px;
   white-space: nowrap;
@@ -403,7 +407,8 @@ h1 {
 
 .done-search-input {
   width: 100%;
-  padding: 8px 12px 8px 32px;
+  padding: 12px 12px 12px 32px;
+  min-height: 44px;
   background: #0f1a2e;
   border: 1px solid #2a3a5c;
   border-radius: 6px;
@@ -748,7 +753,7 @@ h1 {
 }
 
 .project-arrow {
-  font-size: 10px;
+  font-size: 11px;
   color: #666;
   transition: transform 0.15s;
   width: 14px;
@@ -899,7 +904,8 @@ h1 {
 
 .project-add-row input {
   width: 100%;
-  padding: 5px 8px;
+  padding: 10px 8px;
+  min-height: 44px;
   background: #0f1a2e;
   border: 1px solid #2a3a5c;
   border-radius: 4px;
@@ -1433,12 +1439,16 @@ body {
   .task input[type="checkbox"] {
     width: 22px;
     height: 22px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .task-delete {
     opacity: 0.5;
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 16px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .task-priority {
@@ -1458,8 +1468,12 @@ body {
     padding: 12px;
   }
 
-  .project-archive-btn {
+  .project-archive-btn,
+  .project-delete-btn {
     opacity: 0.4;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
   }
 
   /* Chat panel full-width on mobile */
