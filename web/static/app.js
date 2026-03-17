@@ -650,20 +650,6 @@ function buildTaskEl(task, section, index, opts = {}) {
       input.addEventListener("blur", commit);
     });
     controls.appendChild(dlPill);
-    const dlClear = document.createElement("button");
-    dlClear.className = "task-deadline-clear";
-    dlClear.textContent = "\u00d7";
-    if (task.deadline || task.recurrence) {
-      dlClear.title = task.recurrence ? "Remove recurrence" : "Remove deadline";
-      dlClear.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (task.recurrence) api("task/recurrence", { section, index, recurrence: "" });
-        api("task/deadline", { section, index, deadline: "" });
-      });
-    } else {
-      dlClear.style.visibility = "hidden";
-    }
-    controls.appendChild(dlClear);
   }
   controls.appendChild(del);
   div.appendChild(controls);
