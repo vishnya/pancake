@@ -1517,12 +1517,12 @@ let _profileData = null;
 
 // Profile theme colors -- subtle accent per profile
 const PROFILE_COLORS = [
-  { accent: "#9a8045", bg: "#2e2a1a" },  // gold
-  { accent: "#7088a0", bg: "#1a1a2e" },  // blue
-  { accent: "#a07878", bg: "#2e1a1a" },  // rose
-  { accent: "#8878a0", bg: "#2a1a2e" },  // lavender
-  { accent: "#689080", bg: "#1a2e2a" },  // teal
-  { accent: "#a08860", bg: "#2e2a1a" },  // amber
+  { accent: "#7a8fc0", bg: "#1a1e2e" },  // slate blue
+  { accent: "#9a7fb8", bg: "#241a2e" },  // soft purple
+  { accent: "#6ba0a0", bg: "#1a2828" },  // muted teal
+  { accent: "#b0889a", bg: "#2a1a24" },  // dusty mauve
+  { accent: "#7aa098", bg: "#1a2a26" },  // sage
+  { accent: "#8a90b0", bg: "#1e1e2a" },  // periwinkle
 ];
 
 function applyProfileTheme(profileIndex) {
