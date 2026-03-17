@@ -1729,3 +1729,96 @@ body {
   background: #3a4a6c;
   color: #e0e0e0;
 }
+
+/* Task assignee pill */
+.task-assignee {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #2a3040;
+  color: #8a9ab4;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+.task-assignee:hover {
+  background: #343e54;
+  color: #a0b4d0;
+}
+
+.task-assignee-empty {
+  background: transparent;
+  border: 1px dashed #2a3a5c;
+  color: #445;
+  opacity: 0;
+}
+
+.task:hover .task-assignee-empty {
+  opacity: 1;
+}
+
+/* Assignee dropdown */
+.task-assignee-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #16213e;
+  border: 1px solid #2a3a5c;
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 140px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.task-assignee-dropdown-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #e0e0e0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.task-assignee-dropdown-item:hover {
+  background: #1e2d4a;
+}
+
+.task-assignee-dropdown-item.active {
+  color: #5cb85c;
+  font-weight: 600;
+}
+
+.task-assignee-dropdown-item.unassign {
+  color: #cc4444;
+  border-top: 1px solid #2a3a5c;
+  margin-top: 2px;
+  padding-top: 8px;
+}
+
+/* Remind button (envelope icon) */
+.task-remind-btn {
+  background: none;
+  border: none;
+  color: #6a7a9a;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.task:hover .task-remind-btn {
+  opacity: 0.7;
+}
+
+.task-remind-btn:hover {
+  opacity: 1 !important;
+  color: #a0b4d0;
+  background: #2a3a5c;
+}
