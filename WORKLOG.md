@@ -6,6 +6,11 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
+- Added `@manual` override for recurring task auto-sort: when user drags a recurring task to a different section, it stays put instead of being auto-sorted back
+- Manual flag cleared on task completion (deadline advances), so auto-sort resumes for next cycle
+- 7 new tests for manual override behavior
+
+### 2026-03-17 | Server
 - Auto-sort recurring tasks by deadline: due today/overdue → Active, due within week → Up Next
 - Checking off recurring task in Active moves it to Up Next (done for today, comes back when due)
 - 13 new tests for recurring task auto-sorting
