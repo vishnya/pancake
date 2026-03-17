@@ -6,6 +6,9 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
+- Fixed post-login redirect: `Location: /` was sending users to command center instead of Pancake when accessed via `/pancake/` path prefix. Changed to `Location: ./` (relative) which works for both path-prefix and subdomain access.
+
+### 2026-03-17 | Server
 - Fix 501 POST login error: login form used absolute `/login` action which broke behind Caddy's `/pancake/` path prefix (POST hit wrong backend). Changed to relative `login` action.
 - Removed shared_auth from Pancake in Caddy (Pancake has its own auth, double-login was bad UX)
 - Added 12 comprehensive auth/routing tests: HTTP method coverage for all routes, login form action validation, cookie flags, protected route checks
