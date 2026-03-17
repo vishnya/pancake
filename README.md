@@ -157,17 +157,17 @@ When you first log in, you create an account and a "Personal" profile is made fo
 
 ### Household use
 
-Say you want to share a grocery list and household tasks with your partner:
+Say you want to share a grocery list and household tasks with your partner. They don't need to install anything — they just need your server's URL.
 
-1. **You** create your account and log in. You already have a "Personal" profile.
+1. **You** (the person who set up the server) create your account and log in. You already have a "Personal" profile.
 2. **You** create a "Family" profile using the profile switcher in the top bar (click your profile name → "+ New profile").
-3. **Your partner** creates their own account by going to the site and clicking "Create account" on the login page.
+3. **Your partner** opens the same URL on their phone, clicks "Create account", picks a username and password. Done — they now have their own account with a private "Personal" profile.
 4. **You** add your partner to the Family profile: click your profile name → "Manage members" → enter their username.
 5. **Your partner** logs in and switches to the Family profile using the profile switcher.
 
-Now you both see the same Family tasks, can add items, mark things done, and it all stays in sync. Your Personal profiles remain private.
+Now you both see the same Family tasks, can add items, mark things done, and it all stays in sync. Your Personal profiles remain private — you can't see theirs, they can't see yours.
 
-**You don't need two servers.** Everyone uses the same server. Each person has their own account, and profiles control who sees what.
+**Only one person installs Pancake** (whoever sets up the server). Everyone else just visits the URL and creates an account. Think of it like a shared household whiteboard that lives on your server.
 
 ### Data isolation
 
