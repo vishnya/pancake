@@ -6,13 +6,12 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
-- Registration page: /register endpoint lets new users create accounts with auto-created personal profile
-- Profile creation UI: "+ New profile" button in profile switcher dropdown opens create modal
-- Member management UI: "Manage members" button (admin only) opens modal to list, invite, and remove members
-- Profile switcher shows with 1+ profiles (was hidden until 2+)
-- Login page links to registration
-- Fixed post-login redirect, Think chat inbox routing, drag-to-project tags, archive icon
-- 5 new registration tests (237 total pass)
+- Registration with email required, auto-login, auto-creates personal profile
+- First-run: fresh install shows registration page (no blank app)
+- Profile creation UI ("+ New profile"), member management UI ("Manage members" modal)
+- Email field on accounts (stored in accounts.json), install script rewritten for GitHub users
+- Fixed: post-login redirect, Think inbox routing, drag-to-project tags, archive icon, GET /login route
+- Tests updated for profile-scoped auth (120 server tests pass)
 
 ### 2026-03-17 | Server
 - Fix 501 POST login error: login form used absolute `/login` action which broke behind Caddy's `/pancake/` path prefix (POST hit wrong backend). Changed to relative `login` action.
