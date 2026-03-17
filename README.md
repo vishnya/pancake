@@ -66,76 +66,32 @@ There's no cloud database. No API calls to external services (except Claude, if 
 
 ## Install
 
-### On a server (recommended for households)
-
-This is the best setup if multiple people will use it, or if you want to access it from your phone.
+One command:
 
 ```bash
-git clone https://github.com/vishnya/pancake.git
-cd pancake
-bash install.sh
+curl -fsSL https://raw.githubusercontent.com/vishnya/pancake/main/install.sh | bash
 ```
 
-The installer creates a Python virtual environment, installs the `pk` CLI, and sets up data directories.
+The installer walks you through everything:
+1. **Server or laptop?** — pick how you'll use it
+2. **Set a password** — for logging into the web UI
+3. **Done** — it sets up Python, the background service, and tells you where to go
 
-To run the web UI:
-```bash
-PANCAKE_PASSWORD=your-secret .venv/bin/python -m web.server
-```
+That's it. Open the URL it gives you and create your account.
 
-The web server runs on port 5790. Put it behind a reverse proxy (Caddy, nginx) for HTTPS.
+### Server vs. laptop — which should I pick?
 
-**As a systemd service** (starts on boot):
-```bash
-sudo tee /etc/systemd/system/pancake.service << EOF
-[Unit]
-Description=Pancake Priority Tracker
-After=network.target
+| | Server | Laptop |
+|---|---|---|
+| Access from phone | Yes | No |
+| Share with household | Yes | No |
+| Works when laptop is closed | Yes | No |
+| Needs a VPS or always-on machine | Yes | No |
+| Good for | Families, mobile use | Solo, desktop only |
 
-[Service]
-Type=simple
-User=pancake
-WorkingDirectory=/home/pancake/pancake
-ExecStart=/home/pancake/pancake/.venv/bin/python -m web.server
-EnvironmentFile=/etc/pancake.env
-Restart=always
-RestartSec=5
+**Server** means a computer that's always on — a $5/month VPS (DigitalOcean, Hetzner), a Raspberry Pi, or an old laptop you leave running. The installer sets up a systemd service that starts on boot.
 
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Put your password in the env file
-echo "PANCAKE_PASSWORD=your-secret" | sudo tee /etc/pancake.env
-sudo systemctl enable pancake && sudo systemctl start pancake
-```
-
-### On your Mac (personal use)
-
-If it's just you, you can run it locally. Your data lives in your Obsidian vault.
-
-```bash
-git clone https://github.com/vishnya/pancake.git
-cd pancake
-bash install.sh
-```
-
-Set your vault path:
-```bash
-export PANCAKE_VAULT=~/Obsidian/main/PRIORITIES.md
-```
-
-Run the web UI:
-```bash
-.venv/bin/python -m web.server
-```
-
-Or just use the CLI:
-```bash
-pk status          # see what's on your plate
-pk add "fix bug"   # add a task
-pk done            # mark the top task done
-```
+**Laptop** means it runs on your Mac. It starts automatically when you log in and stops when you close the lid. You can only use it from that computer's browser — no phone, no sharing. Good for trying it out or personal desktop use.
 
 ---
 
