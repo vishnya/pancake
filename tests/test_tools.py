@@ -96,8 +96,8 @@ def test_add_task_tool():
     result = execute_tool("add_task", {"text": "new task"})
     assert "new task" in result
     p = load()
-    assert len(p.up_next) == 1
-    assert p.up_next[0].text == "new task"
+    assert len(p.inbox) == 1
+    assert p.inbox[0].text == "new task"
 
 
 def test_add_task_to_active():
@@ -111,7 +111,7 @@ def test_add_task_with_project():
     save(Priorities())
     execute_tool("add_task", {"text": "tagged", "project": "P"})
     p = load()
-    assert p.up_next[0].project == "P"
+    assert p.inbox[0].project == "P"
 
 
 # --- add_project tool ---

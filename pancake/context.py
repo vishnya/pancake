@@ -106,6 +106,15 @@ def build_context(p: Priorities, user_context_path: Path, budget_chars: int = 16
             lines.append(f"- {tag}{t.text}{dl}{pri}")
         sections.append(("Up Next", "\n".join(lines)))
 
+    # 3b. Inbox
+    if p.inbox:
+        lines = []
+        for t in p.inbox:
+            dl = f" (due {t.deadline})" if t.deadline else ""
+            pri = " !!" if t.priority == 2 else " !" if t.priority == 1 else ""
+            lines.append(f"- {t.text}{dl}{pri}")
+        sections.append(("Inbox (unsorted)", "\n".join(lines)))
+
     # 4. Project summaries
     if p.projects:
         lines = []
@@ -160,9 +169,9 @@ def build_context(p: Priorities, user_context_path: Path, budget_chars: int = 16
         "Do this proactively, not just when they say 'add context'. The profile should reflect "
         "their current focus, high-level dreams/goals, active projects, and recent accomplishments. "
         "Use [[wikilinks]] for project references. Merge new info with existing content.\n"
-        "7. EVERY TASK NEEDS A PROJECT: When adding a task, always assign it to a project. "
-        "If the user doesn't specify which project, ask them before creating the task. "
-        "Never create a task without a project.\n"
+        "7. INBOX FOR UNASSIGNED TASKS: When adding a task, if the user specifies a project, "
+        "assign it there. If they don't specify a project, put it in the inbox (the default). "
+        "Never ask which project a task belongs to -- just add it to inbox and move on.\n"
         "8. PRIORITY SYSTEM: Tasks have three priority levels: none (default), ! (important), "
         "!! (critical). When the user asks about their top priorities or what to focus on, "
         "!! tasks are the most urgent, then ! tasks, then unprioritized. When stack-ranking "
