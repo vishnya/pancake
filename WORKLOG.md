@@ -6,6 +6,11 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
+- Auto-sort recurring tasks by deadline: due today/overdue → Active, due within week → Up Next
+- Checking off recurring task in Active moves it to Up Next (done for today, comes back when due)
+- 13 new tests for recurring task auto-sorting
+
+### 2026-03-17 | Server
 - Registration with email required, auto-login, auto-creates personal profile
 - First-run: fresh install shows registration page (no blank app)
 - Profile creation UI ("+ New profile"), member management UI ("Manage members" modal)
@@ -68,14 +73,3 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ### 2026-03-15 | Server
 - Fixed white page bug: static assets (style.css, app.js) were behind Pancake's own auth, returning login HTML instead of actual files. Made them auth-exempt since Caddy shared auth already protects the site.
 
-### 2026-03-15 | Server
-- Added apple-touch-icon.png and PNG icons (192, 512) for mobile favicon support across all web projects
-- Updated manifest.json with PNG icon entries
-
-### 2026-03-15 | Mac
-- Fixed CSS strikethrough bug: `.done-section .task-text` selector had been broken, applying line-through to ALL tasks
-- Added task move up/down buttons + `/api/task/move` server endpoint (workaround for broken HTML5 drag-and-drop)
-- Added `.task-move` CSS styles with mobile overrides
-- Added `setData()` call in dragstart handler
-- Removed debug "DRAG TEST" div and duplicate CSS blocks from server deploy
-- Deployed clean local copies of style.css, app.js, server.py to server
