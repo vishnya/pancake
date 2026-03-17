@@ -861,10 +861,10 @@ h1 {
   color: #555;
   cursor: pointer;
   font-size: 14px;
-  padding: 4px;
+  padding: 2px;
   border-radius: 4px;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -887,10 +887,10 @@ h1 {
   color: #555;
   cursor: pointer;
   font-size: 14px;
-  padding: 4px;
+  padding: 2px;
   border-radius: 4px;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1682,9 +1682,6 @@ body {
   .project-archive-btn,
   .project-delete-btn {
     opacity: 0.4;
-    padding: 4px;
-    width: 24px;
-    height: 24px;
   }
 
   /* Chat panel full-width on mobile */
