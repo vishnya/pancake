@@ -1078,3 +1078,180 @@ def test_auth_expired_session(auth_server):
     assert "Log in" in html or "password" in html
     # Token should be purged
     assert expired_token not in ws.VALID_SESSIONS
+
+
+# =============================================================================
+# HTTP method support -- ensures all routes accept the correct methods
+# =============================================================================
+
+def test_post_login_returns_200_not_501(server):
+    """POST /login must be handled (not return 501 Unsupported method)."""
+    from urllib.parse import urlencode
+    resp = _api_raw(server, "POST", "/login",
+                    headers={"Content-Type": "application/x-www-form-urlencoded"})
+    assert resp.status != 501, "POST /login returned 501 -- do_POST not handling /login"
+
+
+def test_post_login_with_password_returns_200(auth_server):
+    """POST /login with wrong password returns login page, not 501."""
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+    data = urlencode({"username": "bad", "password": "wrong"}).encode()
+    req = Request(f"http://127.0.0.1:{auth_server}/login", data=data, method="POST")
+    resp = urlopen(req)
+    assert resp.status == 200
+    html = resp.read().decode()
+    assert "Wrong" in html
+
+
+def test_login_form_action_is_relative():
+    """Login form action must be relative (not /login) to work behind path prefixes."""
+    from web.server import _LOGIN_TEMPLATE
+    assert 'action="/login"' not in _LOGIN_TEMPLATE, \
+        "Login form uses absolute /login action -- breaks behind reverse proxy path prefixes"
+    assert 'action="login"' in _LOGIN_TEMPLATE
+
+
+def test_all_post_api_routes_accept_post(server):
+    """Every API route that requires POST should respond (not 501/405)."""
+    _seed()
+    post_routes = [
+        ("/api/task/add", {"text": "t", "project": "Test"}),
+        ("/api/task/done", {"section": "active", "index": 0}),
+        ("/api/task/edit", {"section": "active", "index": 0, "text": "e"}),
+        ("/api/task/delete", {"section": "active", "index": 0}),
+        ("/api/task/add_note", {"section": "active", "index": 0, "text": "n"}),
+        ("/api/task/deadline", {"section": "active", "index": 0, "deadline": ""}),
+        ("/api/task/priority", {"section": "active", "index": 0, "priority": 0}),
+        ("/api/task/recurrence", {"section": "active", "index": 0, "recurrence": ""}),
+        ("/api/task/move", {"section": "active", "index": 0, "direction": "up"}),
+        ("/api/task/undone", {"index": 0}),
+        ("/api/reorder", {"active": [], "up_next": []}),
+        ("/api/project/add", {"name": "NewP"}),
+        ("/api/project/edit", {"name": "Test", "description": "d"}),
+        ("/api/project/task/add", {"name": "Test", "text": "t"}),
+        ("/api/project/rename", {"old_name": "Test", "new_name": "Test"}),
+        ("/api/project/archive", {"name": "Test", "archived": False}),
+        ("/api/project/delete", {"name": "Ghost"}),
+        ("/api/project/reorder", {"order": []}),
+        ("/api/note/add", {"text": "n"}),
+        ("/api/note/delete", {"index": 99}),
+        ("/api/undo", {}),
+        ("/api/redo", {}),
+        ("/api/user-context", {"text": "ctx"}),
+    ]
+    for path, body in post_routes:
+        _seed()  # reset state for each
+        resp = _api_raw(server, "POST", path, body=body)
+        assert resp.status != 501, f"POST {path} returned 501 -- do_POST missing or not routing"
+        assert resp.status != 405, f"POST {path} returned 405 -- method not allowed"
+
+
+def test_get_api_routes_accept_get(server):
+    """Every API route that requires GET should respond (not 501/405)."""
+    _seed()
+    get_routes = [
+        "/",
+        "/api/priorities",
+        "/api/chat/status",
+        "/api/user-context",
+        "/api/profiles",
+        "/api/profile/members",
+    ]
+    for path in get_routes:
+        resp = _api_raw(server, "GET", path)
+        assert resp.status != 501, f"GET {path} returned 501"
+        assert resp.status != 405, f"GET {path} returned 405"
+
+
+def test_static_assets_accessible(server):
+    """Static assets should return 200, not redirect to login."""
+    static_routes = [
+        "/static/favicon.svg",
+        "/static/app.js",
+        "/static/style.css",
+    ]
+    for path in static_routes:
+        resp = _api_raw(server, "GET", path)
+        body = resp.read().decode()
+        assert "Log in" not in body, f"GET {path} returned login page instead of asset"
+
+
+def test_post_to_unknown_route_returns_404_not_501(server):
+    """POST to a non-existent API route should return 404, not 501."""
+    resp = _api_raw(server, "POST", "/api/nonexistent", body={"x": 1})
+    assert resp.status == 404, f"POST /api/nonexistent returned {resp.status}, expected 404"
+
+
+def test_login_correct_password_redirects_to_root(auth_server):
+    """Successful login should redirect (303) to /."""
+    from urllib.parse import urlencode
+    from urllib.request import Request
+    import http.client
+    # Use raw HTTP to avoid auto-redirect
+    conn = http.client.HTTPConnection("127.0.0.1", auth_server)
+    body = urlencode({"password": "testpass123"})
+    conn.request("POST", "/login", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    assert resp.status == 303, f"Login returned {resp.status}, expected 303 redirect"
+    location = resp.getheader("Location")
+    assert location == "/", f"Login redirected to {location}, expected /"
+    conn.close()
+
+
+def test_login_sets_session_cookie_with_correct_flags(auth_server):
+    """Login should set HttpOnly, SameSite=Lax cookie."""
+    import http.client
+    from urllib.parse import urlencode
+    conn = http.client.HTTPConnection("127.0.0.1", auth_server)
+    body = urlencode({"password": "testpass123"})
+    conn.request("POST", "/login", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    cookie_header = resp.getheader("Set-Cookie")
+    assert cookie_header is not None, "No Set-Cookie header on successful login"
+    assert "pancake_session=" in cookie_header
+    assert "HttpOnly" in cookie_header
+    assert "SameSite=Lax" in cookie_header
+    conn.close()
+
+
+def test_auth_server_login_with_username(auth_server):
+    """Login with username field should work in legacy mode."""
+    import http.client
+    from urllib.parse import urlencode
+    conn = http.client.HTTPConnection("127.0.0.1", auth_server)
+    body = urlencode({"username": "rachel", "password": "testpass123"})
+    conn.request("POST", "/login", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    assert resp.status == 303, f"Login with username returned {resp.status}, expected 303"
+    conn.close()
+
+
+def test_get_unknown_route_returns_404(server):
+    """GET to a non-existent route should return 404."""
+    resp = _api_raw(server, "GET", "/nonexistent")
+    assert resp.status == 404
+
+
+def test_auth_required_for_api_routes_when_password_set(auth_server):
+    """API routes should require auth when password is set."""
+    _seed()
+    protected_get_routes = ["/api/priorities", "/api/profiles"]
+    for path in protected_get_routes:
+        resp = _api_raw(auth_server, "GET", path)
+        html = resp.read().decode()
+        assert "Log in" in html or "password" in html, \
+            f"GET {path} accessible without auth"
+
+    protected_post_routes = [
+        ("/api/task/add", {"text": "t"}),
+        ("/api/undo", {}),
+    ]
+    for path, body in protected_post_routes:
+        resp = _api_raw(auth_server, "POST", path, body=body)
+        html = resp.read().decode()
+        assert "Log in" in html or "password" in html, \
+            f"POST {path} accessible without auth"

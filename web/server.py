@@ -233,7 +233,7 @@ _LOGIN_TEMPLATE = (
     "button:hover { background: #3a4a6c; }"
     ".error { color: #e05555; font-size: 13px; margin-bottom: 12px; }"
     "</style></head><body>"
-    '<form method="POST" action="/login"><h1>Pancake</h1>'
+    '<form method="POST" action="login"><h1>Pancake</h1>'
     "%s"
     '<input type="text" name="username" placeholder="Username" autofocus>'
     '<input type="password" name="password" placeholder="Password">'
