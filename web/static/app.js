@@ -134,7 +134,8 @@ function render() {
   document.querySelector(".active-header .section-count").textContent = `(${state.active.length})`;
   document.querySelector(".next-header .section-count").textContent = `(${state.up_next.length})`;
   document.querySelector(".inbox-header .section-count").textContent = `(${(state.inbox || []).length})`;
-  document.querySelector(".done-header .section-count").textContent = `(${state.done.length})`;
+  const archivedCount = state.projects.filter(p => p.archived).length;
+  document.querySelector(".done-header .section-count").textContent = `(${state.done.length + archivedCount})`;
   document.querySelector(".projects-header .section-count").textContent = `(${state.projects.filter(p => !p.archived).length})`;
   syncTaskSectionLevel("active-section", "active-list", "active");
   syncTaskSectionLevel("next-section", "next-list", "up_next");
@@ -754,19 +755,75 @@ function renderDone() {
 }
 
 function renderDoneRecent(el) {
-  if (state.done.length === 0) return;
+  const archivedProjects = state.projects.filter(p => p.archived);
 
-  const label = document.createElement("div");
-  label.className = "done-recent-label";
-  label.textContent = "Recent";
-  el.appendChild(label);
+  if (state.done.length > 0) {
+    const label = document.createElement("div");
+    label.className = "done-recent-label";
+    label.textContent = "Recent";
+    el.appendChild(label);
 
-  const scroll = document.createElement("div");
-  scroll.className = "done-recent-scroll";
-  state.done.slice(0, 10).forEach((task) => {
-    scroll.appendChild(buildDoneRow(task));
-  });
-  el.appendChild(scroll);
+    const scroll = document.createElement("div");
+    scroll.className = "done-recent-scroll";
+    state.done.slice(0, 10).forEach((task) => {
+      scroll.appendChild(buildDoneRow(task));
+    });
+    el.appendChild(scroll);
+  }
+
+  // Show archived projects
+  if (archivedProjects.length > 0) {
+    const label = document.createElement("div");
+    label.className = "done-recent-label";
+    label.textContent = "Archived Projects";
+    el.appendChild(label);
+
+    archivedProjects.forEach((proj) => {
+      const card = document.createElement("div");
+      card.className = "done-project-card";
+      const header = document.createElement("div");
+      header.className = "done-project-header";
+      const nameEl = document.createElement("span");
+      nameEl.className = "done-project-name";
+      nameEl.textContent = proj.name;
+      const projColor = getProjectColor(proj.name);
+      if (projColor) nameEl.style.color = projColor.fg;
+      header.appendChild(nameEl);
+
+      if (proj.description) {
+        const desc = document.createElement("span");
+        desc.className = "done-project-desc";
+        desc.textContent = proj.description;
+        header.appendChild(desc);
+      }
+
+      const restoreBtn = document.createElement("button");
+      restoreBtn.className = "done-project-restore";
+      restoreBtn.textContent = "Restore";
+      restoreBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        api("project/archive", { name: proj.name, archived: false });
+      });
+      header.appendChild(restoreBtn);
+      card.appendChild(header);
+
+      // Show backlog tasks still in the archived project
+      const backlogTasks = proj.tasks || [];
+      if (backlogTasks.length > 0) {
+        const section = document.createElement("div");
+        section.className = "done-project-section";
+        backlogTasks.forEach((t) => {
+          const row = document.createElement("div");
+          row.className = "done-project-task";
+          row.textContent = t.text;
+          section.appendChild(row);
+        });
+        card.appendChild(section);
+      }
+
+      el.appendChild(card);
+    });
+  }
 }
 
 function renderDoneSearch(el, q) {
