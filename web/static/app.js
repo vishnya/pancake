@@ -486,6 +486,11 @@ function buildTaskEl(task, section, index, opts = {}) {
       const members = await loadProfileMembers();
       const dropdown = document.createElement("div");
       dropdown.className = "task-assignee-dropdown";
+      // Position fixed to break out of overflow:hidden parents
+      const pillRect = assigneePill.getBoundingClientRect();
+      dropdown.style.position = "fixed";
+      dropdown.style.top = (pillRect.bottom + 4) + "px";
+      dropdown.style.left = Math.min(pillRect.left, window.innerWidth - 160) + "px";
       members.forEach((m) => {
         const item = document.createElement("div");
         item.className = "task-assignee-dropdown-item";
@@ -1022,6 +1027,11 @@ function buildDoneRow(task) {
       const members = await loadProfileMembers();
       const dropdown = document.createElement("div");
       dropdown.className = "task-assignee-dropdown";
+      // Position fixed to break out of overflow:hidden parents
+      const pillRect = assigneePill.getBoundingClientRect();
+      dropdown.style.position = "fixed";
+      dropdown.style.top = (pillRect.bottom + 4) + "px";
+      dropdown.style.left = Math.min(pillRect.left, window.innerWidth - 160) + "px";
       members.forEach((m) => {
         const item = document.createElement("div");
         item.className = "task-assignee-dropdown-item";
