@@ -135,6 +135,7 @@ function render() {
   document.querySelector(".next-header .section-count").textContent = `(${state.up_next.length})`;
   document.querySelector(".inbox-header .section-count").textContent = `(${(state.inbox || []).length})`;
   document.querySelector(".done-header .section-count").textContent = `(${state.done.length})`;
+  document.querySelector(".projects-header .section-count").textContent = `(${state.projects.filter(p => !p.archived).length})`;
   syncTaskSectionLevel("active-section", "active-list", "active");
   syncTaskSectionLevel("next-section", "next-list", "up_next");
   syncTaskSectionLevel("inbox-section", "inbox-list", "inbox");

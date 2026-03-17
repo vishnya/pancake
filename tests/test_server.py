@@ -572,7 +572,7 @@ def test_task_dict_roundtrip(server):
     save(p)
     data = _api(server, "priorities")
     t = data["active"][0]
-    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0, "recurrence": ""}
+    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0, "recurrence": "", "assignee": ""}
 
 
 # =============================================================================
@@ -1357,7 +1357,7 @@ def test_register_creates_account(server):
     import http.client
     from urllib.parse import urlencode
     conn = http.client.HTTPConnection("127.0.0.1", server)
-    body = urlencode({"username": "testuser", "display_name": "Test User",
+    body = urlencode({"email": "test@example.com", "username": "testuser", "display_name": "Test User",
                       "password": "secret123", "password2": "secret123"})
     conn.request("POST", "/register", body=body,
                  headers={"Content-Type": "application/x-www-form-urlencoded"})
@@ -1384,7 +1384,7 @@ def test_register_password_mismatch(server):
     import http.client
     from urllib.parse import urlencode
     conn = http.client.HTTPConnection("127.0.0.1", server)
-    body = urlencode({"username": "baduser", "display_name": "Bad",
+    body = urlencode({"email": "bad@example.com", "username": "baduser", "display_name": "Bad",
                       "password": "pass123", "password2": "pass456"})
     conn.request("POST", "/register", body=body,
                  headers={"Content-Type": "application/x-www-form-urlencoded"})
@@ -1399,7 +1399,7 @@ def test_register_short_password(server):
     import http.client
     from urllib.parse import urlencode
     conn = http.client.HTTPConnection("127.0.0.1", server)
-    body = urlencode({"username": "shortpw", "display_name": "Short",
+    body = urlencode({"email": "short@example.com", "username": "shortpw", "display_name": "Short",
                       "password": "ab", "password2": "ab"})
     conn.request("POST", "/register", body=body,
                  headers={"Content-Type": "application/x-www-form-urlencoded"})
