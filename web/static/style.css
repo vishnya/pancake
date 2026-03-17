@@ -1605,7 +1605,7 @@ body {
   .project-archive-btn,
   .project-delete-btn {
     opacity: 0.4;
-    padding: 12px;
+    padding: 6px;
   }
 
   /* Chat panel full-width on mobile */
