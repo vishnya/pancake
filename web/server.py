@@ -212,11 +212,7 @@ def _snapshot_and_save(p):
 pancake.tools._snapshot_before_save = _snapshot
 
 
-_LOGIN_TEMPLATE = (
-    '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
-    '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">'
-    '<title>Pancake</title><link rel="icon" type="image/svg+xml" href="static/favicon.svg">'
-    "<style>"
+_AUTH_STYLES = (
     "* { margin: 0; padding: 0; box-sizing: border-box; }"
     "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"
     " background: #1a1a2e; color: #e0e0e0; min-height: 100vh;"
@@ -232,12 +228,39 @@ _LOGIN_TEMPLATE = (
     " border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }"
     "button:hover { background: #3a4a6c; }"
     ".error { color: #e05555; font-size: 13px; margin-bottom: 12px; }"
-    "</style></head><body>"
+    ".success { color: #55cc55; font-size: 13px; margin-bottom: 12px; }"
+    ".link { color: #4a6fa5; font-size: 13px; margin-top: 12px; }"
+    ".link a { color: #6a8fc5; text-decoration: none; }"
+    ".link a:hover { text-decoration: underline; }"
+)
+
+_LOGIN_TEMPLATE = (
+    '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">'
+    '<title>Pancake</title><link rel="icon" type="image/svg+xml" href="static/favicon.svg">'
+    "<style>" + _AUTH_STYLES + "</style></head><body>"
     '<form method="POST" action="login"><h1>Pancake</h1>'
     "%s"
     '<input type="text" name="username" placeholder="Username" autofocus>'
     '<input type="password" name="password" placeholder="Password">'
     '<button type="submit">Log in</button>'
+    '<p class="link"><a href="register">Create account</a></p>'
+    "</form></body></html>"
+)
+
+_REGISTER_TEMPLATE = (
+    '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">'
+    '<title>Pancake - Register</title><link rel="icon" type="image/svg+xml" href="static/favicon.svg">'
+    "<style>" + _AUTH_STYLES + "</style></head><body>"
+    '<form method="POST" action="register"><h1>Create Account</h1>'
+    "%s"
+    '<input type="text" name="username" placeholder="Username" autofocus>'
+    '<input type="text" name="display_name" placeholder="Display Name">'
+    '<input type="password" name="password" placeholder="Password">'
+    '<input type="password" name="password2" placeholder="Confirm Password">'
+    '<button type="submit">Create Account</button>'
+    '<p class="link"><a href="login">Already have an account? Log in</a></p>'
     "</form></body></html>"
 )
 
@@ -300,6 +323,16 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html)
 
+    def _serve_register(self, msg="", is_error=True):
+        cls = "error" if is_error else "success"
+        msg_html = f'<div class="{cls}">{msg}</div>' if msg else ""
+        html = (_REGISTER_TEMPLATE % msg_html).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(html)))
+        self.end_headers()
+        self.wfile.write(html)
+
     def _require_auth(self) -> dict | None:
         """Check auth; if not authenticated, serve login page and return None.
         Otherwise returns account dict and sets up profile context."""
@@ -326,6 +359,10 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             return
         if path_no_qs == "/static/sw.js":
             self._serve_file("static/sw.js", "application/javascript")
+            return
+
+        if path_no_qs == "/register":
+            self._serve_register()
             return
 
         # Static assets are auth-exempt (Caddy shared auth protects the site)
@@ -379,6 +416,40 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
+        # Register route -- exempt from auth
+        if self.path == "/register":
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length).decode()
+            params = parse_qs(raw)
+            username = params.get("username", [""])[0].strip().lower()
+            display_name = params.get("display_name", [""])[0].strip()
+            password = params.get("password", [""])[0]
+            password2 = params.get("password2", [""])[0]
+            if not username or not password:
+                self._serve_register("Username and password are required.")
+                return
+            if len(username) < 2:
+                self._serve_register("Username must be at least 2 characters.")
+                return
+            if len(password) < 6:
+                self._serve_register("Password must be at least 6 characters.")
+                return
+            if password != password2:
+                self._serve_register("Passwords do not match.")
+                return
+            try:
+                account = create_account(username, display_name or username.title(), password)
+                # Create a default personal profile for the new account
+                profile_id = f"{username}-personal"
+                try:
+                    create_profile(profile_id, "Personal", username)
+                except ValueError:
+                    pass  # profile already exists
+                self._serve_register("Account created! You can now log in.", is_error=False)
+            except ValueError as e:
+                self._serve_register(str(e))
+            return
+
         # Login route -- exempt from auth
         if self.path == "/login":
             length = int(self.headers.get("Content-Length", 0))

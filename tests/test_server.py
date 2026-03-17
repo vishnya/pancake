@@ -1284,3 +1284,80 @@ def test_auth_required_for_api_routes_when_password_set(auth_server):
         html = resp.read().decode()
         assert "Log in" in html or "password" in html, \
             f"POST {path} accessible without auth"
+
+
+# =============================================================================
+# Registration
+# =============================================================================
+
+def test_register_page_loads(server):
+    """GET /register should return the registration form."""
+    resp = _api_raw(server, "GET", "/register")
+    assert resp.status == 200
+    html = resp.read().decode()
+    assert "Create Account" in html
+    assert 'name="username"' in html
+    assert 'name="password"' in html
+
+
+def test_register_creates_account(server):
+    """POST /register with valid data should create account + default profile."""
+    import http.client
+    from urllib.parse import urlencode
+    conn = http.client.HTTPConnection("127.0.0.1", server)
+    body = urlencode({"username": "testuser", "display_name": "Test User",
+                      "password": "secret123", "password2": "secret123"})
+    conn.request("POST", "/register", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    html = resp.read().decode()
+    assert resp.status == 200
+    assert "Account created" in html
+    conn.close()
+    # Verify account exists
+    from pancake.accounts import get_account, get_memberships_for_account
+    account = get_account("testuser")
+    assert account is not None
+    assert account["display_name"] == "Test User"
+    # Verify default profile was created
+    memberships = get_memberships_for_account("testuser")
+    assert len(memberships) >= 1
+    assert memberships[0]["role"] == "admin"
+
+
+def test_register_password_mismatch(server):
+    """POST /register with mismatched passwords should show error."""
+    import http.client
+    from urllib.parse import urlencode
+    conn = http.client.HTTPConnection("127.0.0.1", server)
+    body = urlencode({"username": "baduser", "display_name": "Bad",
+                      "password": "pass123", "password2": "pass456"})
+    conn.request("POST", "/register", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    html = resp.read().decode()
+    assert "do not match" in html
+    conn.close()
+
+
+def test_register_short_password(server):
+    """POST /register with short password should show error."""
+    import http.client
+    from urllib.parse import urlencode
+    conn = http.client.HTTPConnection("127.0.0.1", server)
+    body = urlencode({"username": "shortpw", "display_name": "Short",
+                      "password": "ab", "password2": "ab"})
+    conn.request("POST", "/register", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    html = resp.read().decode()
+    assert "at least 6" in html
+    conn.close()
+
+
+def test_login_page_has_register_link(server):
+    """Login page should have a link to the registration page."""
+    resp = _api_raw(server, "GET", "/login")
+    html = resp.read().decode()
+    assert "Create account" in html
+    assert "register" in html

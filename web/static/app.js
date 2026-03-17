@@ -1345,38 +1345,171 @@ document.addEventListener("DOMContentLoaded", () => {
   initProfileSwitcher();
 });
 
+let _profileData = null;
+
 async function initProfileSwitcher() {
   try {
     const res = await fetch("api/profiles");
-    const data = await res.json();
-    if (!data.profiles || data.profiles.length <= 1) return;
+    _profileData = await res.json();
+    const data = _profileData;
+    if (!data.profiles || data.profiles.length === 0) return;
     const switcher = document.getElementById("profile-switcher");
     if (!switcher) return;
     switcher.style.display = "flex";
     const label = switcher.querySelector(".profile-label");
     const menu = switcher.querySelector(".profile-menu");
     const active = data.profiles.find(p => p.profile_id === data.active_profile);
-    label.textContent = active ? active.display_name : (data.profiles[0]?.display_name || "");
+    label.textContent = active ? active.display_name : (data.profiles[0]?.display_name || "Profile");
     label.addEventListener("click", () => menu.classList.toggle("open"));
     menu.innerHTML = "";
     data.profiles.forEach(p => {
       const item = document.createElement("div");
       item.className = "profile-menu-item" + (p.profile_id === data.active_profile ? " active" : "");
       item.textContent = p.display_name;
-      item.addEventListener("click", async () => {
-        await fetch("api/profile/switch", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({profile_id: p.profile_id}),
+      if (p.profile_id !== data.active_profile) {
+        item.addEventListener("click", async () => {
+          await fetch("api/profile/switch", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({profile_id: p.profile_id}),
+          });
+          location.reload();
         });
-        location.reload();
-      });
+      }
       menu.appendChild(item);
     });
+    // "New profile" button
+    const newBtn = document.createElement("div");
+    newBtn.className = "profile-menu-item profile-menu-action";
+    newBtn.textContent = "+ New profile";
+    newBtn.addEventListener("click", () => { menu.classList.remove("open"); showCreateProfileModal(); });
+    menu.appendChild(newBtn);
+    // "Manage members" button (admin only)
+    if (active && active.role === "admin") {
+      const membersBtn = document.createElement("div");
+      membersBtn.className = "profile-menu-item profile-menu-action";
+      membersBtn.textContent = "Manage members";
+      membersBtn.addEventListener("click", () => { menu.classList.remove("open"); showMembersModal(); });
+      menu.appendChild(membersBtn);
+    }
     document.addEventListener("click", (e) => {
       if (!switcher.contains(e.target)) menu.classList.remove("open");
     });
   } catch (e) {}
+}
+
+function showCreateProfileModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Create Profile</h3>
+      <input type="text" id="new-profile-name" placeholder="Profile name (e.g. Family)" autofocus>
+      <div class="modal-buttons">
+        <button class="modal-cancel">Cancel</button>
+        <button class="modal-confirm">Create</button>
+      </div>
+      <div class="modal-error"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector(".modal-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector(".modal-confirm").addEventListener("click", async () => {
+    const name = overlay.querySelector("#new-profile-name").value.trim();
+    if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const res = await fetch("api/profile/create", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({id, display_name: name}),
+    });
+    const data = await res.json();
+    if (data.error) {
+      overlay.querySelector(".modal-error").textContent = data.error;
+    } else {
+      overlay.remove();
+      // Switch to the new profile
+      await fetch("api/profile/switch", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({profile_id: id}),
+      });
+      location.reload();
+    }
+  });
+  overlay.querySelector("#new-profile-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") overlay.querySelector(".modal-confirm").click();
+  });
+}
+
+async function showMembersModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Members</h3>
+      <div class="members-list">Loading...</div>
+      <div class="invite-section">
+        <h4>Invite member</h4>
+        <input type="text" id="invite-username" placeholder="Username to invite">
+        <select id="invite-role"><option value="member">Member</option><option value="admin">Admin</option></select>
+        <button class="modal-confirm invite-btn">Invite</button>
+      </div>
+      <div class="modal-error"></div>
+      <div class="modal-buttons"><button class="modal-cancel">Close</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector(".modal-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // Load members
+  async function refreshMembers() {
+    const res = await fetch("api/profile/members");
+    const data = await res.json();
+    const list = overlay.querySelector(".members-list");
+    if (data.members && data.members.length > 0) {
+      list.innerHTML = data.members.map(m =>
+        `<div class="member-row">
+          <span class="member-name">${m.display_name || m.account_id}</span>
+          <span class="member-role">${m.role}</span>
+          ${m.role !== "admin" ? `<button class="member-remove" data-id="${m.account_id}">&times;</button>` : ""}
+        </div>`
+      ).join("");
+      list.querySelectorAll(".member-remove").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          await fetch("api/profile/remove_member", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({account_id: btn.dataset.id}),
+          });
+          refreshMembers();
+        });
+      });
+    } else {
+      list.innerHTML = "<div>No members</div>";
+    }
+  }
+  refreshMembers();
+
+  // Invite
+  overlay.querySelector(".invite-btn").addEventListener("click", async () => {
+    const username = overlay.querySelector("#invite-username").value.trim().toLowerCase();
+    const role = overlay.querySelector("#invite-role").value;
+    if (!username) return;
+    const res = await fetch("api/profile/invite", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({account_id: username, role}),
+    });
+    const data = await res.json();
+    if (data.error) {
+      overlay.querySelector(".modal-error").textContent = data.error;
+    } else {
+      overlay.querySelector("#invite-username").value = "";
+      overlay.querySelector(".modal-error").textContent = "";
+      refreshMembers();
+    }
+  });
 }
 
 // Chat panel
