@@ -1518,6 +1518,40 @@ h1 {
   max-width: 80vw;
 }
 
+
+/* Priority dot (single tappable indicator) */
+.task-priority-dot {
+  font-size: 12px;
+  font-weight: 700;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #445;
+  background: #1e2740;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.task-priority-dot:hover {
+  background: #2a3450;
+  color: #667;
+}
+
+.task-priority-dot.p1 {
+  color: #e0a040;
+  background: #2e2a1a;
+}
+
+.task-priority-dot.p2 {
+  color: #e05555;
+  background: #2e1a1a;
+}
+
 /* Touch-friendly defaults */
 * { touch-action: manipulation; }
 
@@ -1560,7 +1594,6 @@ body {
 
   .task-priority {
     opacity: 1;
-    display: none;
   }
 
   .task-project {

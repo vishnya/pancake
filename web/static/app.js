@@ -574,21 +574,16 @@ function buildTaskEl(task, section, index, opts = {}) {
     }
   });
 
-  // Priority indicator (clickable !/!! toggle)
+  // Priority indicator (single tappable dot, cycles 0→1→2→0)
   const pri = document.createElement("span");
-  pri.className = "task-priority";
-  if (task.priority === 2) pri.classList.add("task-priority-2");
-  else if (task.priority === 1) pri.classList.add("task-priority-1");
-  pri.innerHTML = '<span class="pri-mark" data-n="1">!</span><span class="pri-mark" data-n="2">!</span>';
+  pri.className = "task-priority-dot";
+  if (task.priority === 2) { pri.classList.add("p2"); pri.textContent = "!!"; }
+  else if (task.priority === 1) { pri.classList.add("p1"); pri.textContent = "!"; }
+  else { pri.textContent = "·"; }
+  pri.title = task.priority === 0 ? "Set priority" : task.priority === 1 ? "Important" : "Critical";
   pri.addEventListener("click", (e) => {
     e.stopPropagation();
-    const mark = e.target.closest(".pri-mark");
-    if (!mark) return;
-    const clicked = parseInt(mark.dataset.n);
-    // Click highest active mark to deselect one level; click higher to escalate
-    let newPri;
-    if (clicked === task.priority) newPri = clicked - 1;  // toggle down (2→1, 1→0)
-    else newPri = clicked;
+    const newPri = (task.priority + 1) % 3;
     api("task/priority", { section, index, priority: newPri });
   });
 
