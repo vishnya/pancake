@@ -281,8 +281,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             return None
         # Multi-account mode
         if not load_accounts():
-            # No accounts and no password = no auth required
-            return {"id": "default", "display_name": "Default"}
+            # No accounts = first-run, redirect to setup
+            return None
         cookie = SimpleCookie(self.headers.get("Cookie", ""))
         token_morsel = cookie.get("pancake_session")
         if not token_morsel:
@@ -334,11 +334,15 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self.wfile.write(html)
 
     def _require_auth(self) -> dict | None:
-        """Check auth; if not authenticated, serve login page and return None.
+        """Check auth; if not authenticated, serve login/register page and return None.
         Otherwise returns account dict and sets up profile context."""
         account = self._check_auth()
         if not account:
-            self._serve_login()
+            if not load_accounts() and not PANCAKE_PASSWORD:
+                # First-run: no accounts exist, redirect to setup
+                self._serve_register()
+            else:
+                self._serve_login()
             return None
         self._get_active_profile(account)
         return account
@@ -361,6 +365,9 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._serve_file("static/sw.js", "application/javascript")
             return
 
+        if path_no_qs == "/login":
+            self._serve_login()
+            return
         if path_no_qs == "/register":
             self._serve_register()
             return
@@ -445,7 +452,20 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                     create_profile(profile_id, "Personal", username)
                 except ValueError:
                     pass  # profile already exists
-                self._serve_register("Account created! You can now log in.", is_error=False)
+                # Auto-login after registration
+                token = secrets.token_urlsafe(32)
+                VALID_SESSIONS[token] = {"account": account["id"], "expiry": time.time() + SESSION_MAX_AGE}
+                _save_sessions()
+                self.send_response(303)
+                secure_flag = "; Secure" if HOST != "127.0.0.1" else ""
+                self.send_header("Set-Cookie",
+                    f"pancake_session={token}; HttpOnly; SameSite=Lax; "
+                    f"Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
+                self.send_header("Set-Cookie",
+                    f"pancake_profile={profile_id}; SameSite=Lax; "
+                    f"Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
+                self.send_header("Location", "./")
+                self.end_headers()
             except ValueError as e:
                 self._serve_register(str(e))
             return

@@ -1,16 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PANCAKE_DIR="$HOME/code/pancake"
-VAULT_DIR="$HOME/Obsidian/main"
-LOCAL_BIN="$HOME/.local/bin"
-INIT_LUA="$HOME/code/anki_fox/hammerspoon/init.lua"
-CLAUDE_COMMANDS="$HOME/.claude/commands"
-OBSIDIAN_HOTKEYS="$VAULT_DIR/.obsidian/hotkeys.json"
-PLIST_SRC="$PANCAKE_DIR/launchd/com.pancake.plist"
-PLIST_DST="$HOME/Library/LaunchAgents/com.pancake.plist"
-DOFILE_LINE='dofile(os.getenv("HOME") .. "/code/pancake/hammerspoon/pancake_hotkey.lua")'
-DOFILE_COMMENT="-- Pancake hotkeys"
+PANCAKE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Installing Pancake..."
 
@@ -24,89 +15,78 @@ else
     "$PANCAKE_DIR/.venv/bin/pip" install -q -e "$PANCAKE_DIR"
 fi
 
-# 2. Symlink pk CLI
-mkdir -p "$LOCAL_BIN"
-ln -sf "$PANCAKE_DIR/.venv/bin/pk" "$LOCAL_BIN/pk"
-echo "Installed: pk -> $LOCAL_BIN/pk"
-
-# 3. Create PRIORITIES.md if not present
-if [ ! -f "$VAULT_DIR/PRIORITIES.md" ]; then
-    mkdir -p "$VAULT_DIR"
-    cp "$PANCAKE_DIR/templates/PRIORITIES.md" "$VAULT_DIR/PRIORITIES.md"
-    echo "Created: $VAULT_DIR/PRIORITIES.md"
-else
-    echo "Skipped: PRIORITIES.md already exists"
+# 2. Symlink pk CLI (optional, if ~/.local/bin exists or user wants it)
+LOCAL_BIN="${HOME}/.local/bin"
+if [ -d "$LOCAL_BIN" ] || mkdir -p "$LOCAL_BIN" 2>/dev/null; then
+    ln -sf "$PANCAKE_DIR/.venv/bin/pk" "$LOCAL_BIN/pk"
+    echo "Installed: pk -> $LOCAL_BIN/pk"
 fi
 
-# 4. Create Projects directory in Obsidian vault
-mkdir -p "$VAULT_DIR/Projects"
+# 3. Create data directories
+DATA_DIR="${PANCAKE_DATA_ROOT:-$PANCAKE_DIR}"
+mkdir -p "$DATA_DIR/vault" "$DATA_DIR/data" "$DATA_DIR/config"
+echo "Data directory: $DATA_DIR"
 
-# 5. Add Hammerspoon hotkey
-if [ -f "$INIT_LUA" ]; then
-    if ! grep -q "pancake_hotkey.lua" "$INIT_LUA"; then
+# 4. Create default PRIORITIES.md if not present
+VAULT_PATH="${PANCAKE_VAULT:-}"
+if [ -z "$VAULT_PATH" ]; then
+    # Default: vault/personal/PRIORITIES.md
+    mkdir -p "$DATA_DIR/vault/default"
+    if [ ! -f "$DATA_DIR/vault/default/PRIORITIES.md" ]; then
+        if [ -f "$PANCAKE_DIR/templates/PRIORITIES.md" ]; then
+            cp "$PANCAKE_DIR/templates/PRIORITIES.md" "$DATA_DIR/vault/default/PRIORITIES.md"
+            echo "Created: vault/default/PRIORITIES.md"
+        fi
+    fi
+fi
+
+# 5. Install Claude commands (if claude is installed)
+CLAUDE_COMMANDS="${HOME}/.claude/commands"
+if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
+    mkdir -p "$CLAUDE_COMMANDS"
+    for cmd in morning think; do
+        if [ -f "$PANCAKE_DIR/claude/${cmd}.md" ]; then
+            cp "$PANCAKE_DIR/claude/${cmd}.md" "$CLAUDE_COMMANDS/${cmd}.md"
+        fi
+    done
+    echo "Installed Claude commands: /morning, /think"
+fi
+
+# 6. Mac-specific: Hammerspoon + launchd (skip on Linux)
+if [[ "$(uname)" == "Darwin" ]]; then
+    # Hammerspoon hotkey
+    INIT_LUA="${HOME}/code/anki_fox/hammerspoon/init.lua"
+    DOFILE_LINE="dofile(os.getenv(\"HOME\") .. \"/code/pancake/hammerspoon/pancake_hotkey.lua\")"
+    if [ -f "$INIT_LUA" ] && ! grep -q "pancake_hotkey.lua" "$INIT_LUA"; then
         echo "" >> "$INIT_LUA"
-        echo "$DOFILE_COMMENT" >> "$INIT_LUA"
+        echo "-- Pancake hotkeys" >> "$INIT_LUA"
         echo "$DOFILE_LINE" >> "$INIT_LUA"
-        echo "Added Hammerspoon hotkey (Cmd+Shift+P opens web UI)"
-    else
-        echo "Skipped: Hammerspoon hotkey already configured"
+        echo "Added Hammerspoon hotkey (Cmd+Shift+P)"
     fi
-else
-    echo "Warning: $INIT_LUA not found. Hammerspoon hotkey not installed."
-fi
 
-# 6. Configure Obsidian hotkeys (Alt+Up/Down)
-if [ -f "$OBSIDIAN_HOTKEYS" ]; then
-    if ! grep -q "swap-line-up" "$OBSIDIAN_HOTKEYS"; then
-        python3 -c "
-import json
-with open('$OBSIDIAN_HOTKEYS') as f:
-    hotkeys = json.load(f)
-hotkeys['editor:swap-line-up'] = [{'modifiers': ['Alt'], 'key': 'ArrowUp'}]
-hotkeys['editor:swap-line-down'] = [{'modifiers': ['Alt'], 'key': 'ArrowDown'}]
-with open('$OBSIDIAN_HOTKEYS', 'w') as f:
-    json.dump(hotkeys, f, indent=2)
-    f.write('\n')
-"
-        echo "Configured Obsidian hotkeys: Alt+Up/Down"
-    else
-        echo "Skipped: Obsidian hotkeys already configured"
+    # launchd agent
+    PLIST_SRC="$PANCAKE_DIR/launchd/com.pancake.plist"
+    PLIST_DST="$HOME/Library/LaunchAgents/com.pancake.plist"
+    if [ -f "$PLIST_SRC" ]; then
+        VENV_PYTHON="$PANCAKE_DIR/.venv/bin/python"
+        sed -e "s|__VENV_PYTHON__|$VENV_PYTHON|g" \
+            -e "s|__PANCAKE_DIR__|$PANCAKE_DIR|g" \
+            "$PLIST_SRC" > "$PLIST_DST"
+        launchctl unload "$PLIST_DST" 2>/dev/null || true
+        launchctl load "$PLIST_DST"
+        echo "Installed launchd agent: web UI auto-starts on login"
     fi
-else
-    echo "Warning: Obsidian hotkeys.json not found. Skipping."
-fi
-
-# 7. Install Claude commands
-mkdir -p "$CLAUDE_COMMANDS"
-cp "$PANCAKE_DIR/claude/morning.md" "$CLAUDE_COMMANDS/morning.md"
-cp "$PANCAKE_DIR/claude/think.md" "$CLAUDE_COMMANDS/think.md"
-echo "Installed Claude commands: /morning, /think"
-
-# 8. Install launchd agent (auto-start web UI on login)
-VENV_PYTHON="$PANCAKE_DIR/.venv/bin/python"
-sed -e "s|__VENV_PYTHON__|$VENV_PYTHON|g" \
-    -e "s|__PANCAKE_DIR__|$PANCAKE_DIR|g" \
-    "$PLIST_SRC" > "$PLIST_DST"
-launchctl unload "$PLIST_DST" 2>/dev/null || true
-launchctl load "$PLIST_DST"
-echo "Installed launchd agent: web UI auto-starts on login (port 5790)"
-
-# 9. Add /etc/hosts alias (requires sudo)
-if ! grep -q "^127.0.0.1.*pancake$" /etc/hosts 2>/dev/null; then
-    echo ""
-    echo "To access the UI at http://pancake:5790 instead of http://localhost:5790, run:"
-    echo "  echo '127.0.0.1 pancake' | sudo tee -a /etc/hosts"
-    echo ""
-fi
-
-# 10. Reload Hammerspoon if running
-if pgrep -x Hammerspoon > /dev/null 2>&1; then
-    hs -c "hs.reload()" 2>/dev/null && echo "Hammerspoon reloaded" || echo "Note: reload Hammerspoon manually"
 fi
 
 echo ""
 echo "Pancake installed!"
-echo "  Web UI: https://5.161.182.15.nip.io"
-echo "  CLI:    pk status"
-echo "  Hotkey: Cmd+Shift+P opens web UI"
-echo "  Logs:   tail -f /tmp/pancake.log"
+echo ""
+echo "  Start the web UI:"
+echo "    $PANCAKE_DIR/.venv/bin/python -m web.server"
+echo ""
+echo "  Then open http://localhost:5790 in your browser."
+echo "  You'll be prompted to create your first account."
+echo ""
+if [ -f "$LOCAL_BIN/pk" ]; then
+    echo "  CLI: pk status"
+fi

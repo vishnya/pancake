@@ -15,13 +15,45 @@ os.environ["PANCAKE_CONFIG_DIR"] = os.path.join(_tmpdir, "config")
 os.environ["PANCAKE_DATA_ROOT"] = _tmpdir
 
 from pancake.priorities import Priorities, Task, ProjectInfo, save, load
-from web.server import PancakeHandler, UNDO_STACK
+from web.server import PancakeHandler, UNDO_STACK, VALID_SESSIONS, SESSION_MAX_AGE, _get_undo_stack
+import time as _time
+
+# Create a test account so the server allows API access
+os.makedirs(os.path.join(_tmpdir, "config"), exist_ok=True)
+_test_session_token = "test-session-token-for-tests"
+
+def _setup_test_account():
+    """Create test account and session for API access."""
+    from pancake.accounts import create_account, create_profile, add_membership
+    from pancake.priorities import set_active_profile
+    try:
+        create_account("testadmin", "Test Admin", "testpass123")
+    except ValueError:
+        pass  # already exists
+    try:
+        create_profile("test-personal", "Personal", "testadmin")
+    except ValueError:
+        pass
+    # Add rachel membership for legacy auth mode tests
+    try:
+        add_membership("rachel", "test-personal", "admin")
+    except Exception:
+        pass
+    # Set active profile so vault_path() resolves correctly in test thread
+    set_active_profile("test-personal")
+    VALID_SESSIONS[_test_session_token] = {
+        "account": "testadmin",
+        "expiry": _time.time() + SESSION_MAX_AGE,
+    }
+
+_setup_test_account()
 
 
 def _api(port, path, body=None):
     url = f"http://127.0.0.1:{port}/api/{path}"
     data = json.dumps(body).encode() if body is not None else None
     headers = {"Content-Type": "application/json"} if body is not None else {}
+    headers["Cookie"] = f"pancake_session={_test_session_token}; pancake_profile=test-personal"
     req = Request(url, data=data, headers=headers, method="POST" if body is not None else "GET")
     with urlopen(req) as resp:
         return json.loads(resp.read())
@@ -29,16 +61,28 @@ def _api(port, path, body=None):
 
 @pytest.fixture()
 def server():
+    # Restore env vars to this test module's tmpdir (other test files may change them)
+    os.environ["PANCAKE_VAULT"] = os.path.join(_tmpdir, "PRIORITIES.md")
+    os.environ["PANCAKE_CONFIG_DIR"] = os.path.join(_tmpdir, "config")
+    os.environ["PANCAKE_DATA_ROOT"] = _tmpdir
+    # Ensure test account and session exist
+    _setup_test_account()
+    VALID_SESSIONS[_test_session_token] = {
+        "account": "testadmin",
+        "expiry": _time.time() + SESSION_MAX_AGE,
+    }
     srv = HTTPServer(("127.0.0.1", 0), PancakeHandler)
     port = srv.server_address[1]
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    UNDO_STACK.clear()
+    _get_undo_stack().clear()
     yield port
     srv.shutdown()
 
 
 def _seed(**kwargs):
+    from pancake.priorities import set_active_profile
+    set_active_profile("test-personal")
     defaults = dict(
         active=[Task(text="active task", project="Test")],
         up_next=[Task(text="next task", project="Test")],
@@ -47,7 +91,7 @@ def _seed(**kwargs):
     defaults.update(kwargs)
     p = Priorities(**defaults)
     save(p)
-    UNDO_STACK.clear()
+    _get_undo_stack().clear()
 
 
 # =============================================================================
@@ -436,7 +480,7 @@ def test_undo_stack_limit(server):
     _seed()
     for i in range(MAX_UNDO + 5):
         _api(server, "task/add", {"text": f"task {i}", "section": "up_next"})
-    assert len(UNDO_STACK) == MAX_UNDO
+    assert len(_get_undo_stack()) == MAX_UNDO
 
 
 def test_undo_restores_task_edit(server):
@@ -886,23 +930,19 @@ def test_undone_undo(server):
 # =============================================================================
 
 def test_save_and_get_user_context(server):
-    from urllib.request import Request, urlopen
     # Save
     _api(server, "user-context", {"text": "I am a developer"})
     # Get
-    url = f"http://127.0.0.1:{server}/api/user-context"
-    with urlopen(url) as resp:
-        data = json.loads(resp.read())
+    resp = _api_raw(server, "GET", "/api/user-context")
+    data = json.loads(resp.read())
     assert data["text"] == "I am a developer"
 
 
 def test_save_empty_user_context(server):
-    from urllib.request import Request, urlopen
     _api(server, "user-context", {"text": "something"})
     _api(server, "user-context", {"text": ""})
-    url = f"http://127.0.0.1:{server}/api/user-context"
-    with urlopen(url) as resp:
-        data = json.loads(resp.read())
+    resp = _api_raw(server, "GET", "/api/user-context")
+    data = json.loads(resp.read())
     assert data["text"] == ""
 
 
@@ -910,19 +950,21 @@ def test_save_empty_user_context(server):
 # Authentication
 # =============================================================================
 
-def test_auth_disabled_by_default(server):
-    """Without PANCAKE_PASSWORD, all endpoints are accessible."""
+def test_auth_with_session_cookie(server):
+    """With a valid session cookie, API endpoints are accessible."""
     data = _api(server, "priorities")
     assert "active" in data
 
 
-def _api_raw(port, method, path, body=None, headers=None):
+def _api_raw(port, method, path, body=None, headers=None, with_auth=True):
     """Low-level HTTP request returning response object for header inspection."""
     from urllib.request import Request, urlopen
     from urllib.error import HTTPError
     url = f"http://127.0.0.1:{port}{path}"
     data = json.dumps(body).encode() if body is not None else None
     hdrs = {"Content-Type": "application/json"} if body is not None else {}
+    if with_auth:
+        hdrs["Cookie"] = f"pancake_session={_test_session_token}; pancake_profile=test-personal"
     if headers:
         hdrs.update(headers)
     req = Request(url, data=data, headers=hdrs, method=method)
@@ -935,6 +977,11 @@ def _api_raw(port, method, path, body=None, headers=None):
 @pytest.fixture()
 def auth_server():
     """Server with password protection enabled."""
+    # Restore env vars
+    os.environ["PANCAKE_VAULT"] = os.path.join(_tmpdir, "PRIORITIES.md")
+    os.environ["PANCAKE_CONFIG_DIR"] = os.path.join(_tmpdir, "config")
+    os.environ["PANCAKE_DATA_ROOT"] = _tmpdir
+    _setup_test_account()
     import web.server as ws
     old_pw = ws.PANCAKE_PASSWORD
     old_sessions = ws.VALID_SESSIONS.copy()
@@ -945,7 +992,7 @@ def auth_server():
     port = srv.server_address[1]
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    UNDO_STACK.clear()
+    _get_undo_stack().clear()
     yield port
     srv.shutdown()
     ws.PANCAKE_PASSWORD = old_pw
@@ -955,7 +1002,7 @@ def auth_server():
 
 def test_auth_required_redirects_to_login(auth_server):
     """Without session cookie, GET / returns login page."""
-    resp = _api_raw(auth_server, "GET", "/")
+    resp = _api_raw(auth_server, "GET", "/", with_auth=False)
     html = resp.read().decode()
     assert "Log in" in html
     assert "password" in html
@@ -987,29 +1034,34 @@ def test_auth_correct_password_sets_cookie(auth_server):
 
 
 def test_auth_session_cookie_grants_access(auth_server):
-    """After login, session cookie grants access to API."""
+    """After login with username+password, session cookie grants access to API."""
+    import http.client
     from urllib.parse import urlencode
-    from urllib.request import Request, build_opener, HTTPCookieProcessor
-    import http.cookiejar
-    jar = http.cookiejar.CookieJar()
-    opener = build_opener(HTTPCookieProcessor(jar))
-    # Login
-    data = urlencode({"password": "testpass123"}).encode()
-    req = Request(f"http://127.0.0.1:{auth_server}/login", data=data, method="POST")
-    opener.open(req)
-    # Now access API with cookie
+    conn = http.client.HTTPConnection("127.0.0.1", auth_server)
+    # Login with the testadmin account (multi-account mode since accounts exist)
+    body = urlencode({"username": "testadmin", "password": "testpass123"})
+    conn.request("POST", "/login", body=body,
+                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+    resp = conn.getresponse()
+    resp.read()
+    cookie_hdr = resp.getheader("Set-Cookie")
+    assert cookie_hdr and "pancake_session=" in cookie_hdr
+    session_token = cookie_hdr.split("pancake_session=")[1].split(";")[0]
+    conn.close()
+    # Seed data and access API
     _seed()
-    req = Request(f"http://127.0.0.1:{auth_server}/api/priorities")
-    resp = opener.open(req)
-    result = json.loads(resp.read())
+    conn2 = http.client.HTTPConnection("127.0.0.1", auth_server)
+    conn2.request("GET", "/api/priorities",
+                  headers={"Cookie": f"pancake_session={session_token}; pancake_profile=test-personal"})
+    resp2 = conn2.getresponse()
+    result = json.loads(resp2.read())
     assert "active" in result
+    conn2.close()
 
 
 def test_auth_exempt_favicon(auth_server):
     """Favicon is accessible without auth."""
-    # This will either return the file or 404 if it doesn't exist, but not a login page
-    resp = _api_raw(auth_server, "GET", "/static/favicon.svg")
-    # Should not be a login form
+    resp = _api_raw(auth_server, "GET", "/static/favicon.svg", with_auth=False)
     body = resp.read().decode()
     assert "Log in" not in body
 
@@ -1018,7 +1070,7 @@ def test_auth_api_post_requires_auth(auth_server):
     """POST to API without auth serves login page."""
     _seed()
     resp = _api_raw(auth_server, "POST", "/api/task/add",
-                    body={"text": "sneak", "project": "X"})
+                    body={"text": "sneak", "project": "X"}, with_auth=False)
     html = resp.read().decode()
     assert "Log in" in html or "password" in html
 
@@ -1270,7 +1322,7 @@ def test_auth_required_for_api_routes_when_password_set(auth_server):
     _seed()
     protected_get_routes = ["/api/priorities", "/api/profiles"]
     for path in protected_get_routes:
-        resp = _api_raw(auth_server, "GET", path)
+        resp = _api_raw(auth_server, "GET", path, with_auth=False)
         html = resp.read().decode()
         assert "Log in" in html or "password" in html, \
             f"GET {path} accessible without auth"
@@ -1280,7 +1332,7 @@ def test_auth_required_for_api_routes_when_password_set(auth_server):
         ("/api/undo", {}),
     ]
     for path, body in protected_post_routes:
-        resp = _api_raw(auth_server, "POST", path, body=body)
+        resp = _api_raw(auth_server, "POST", path, body=body, with_auth=False)
         html = resp.read().decode()
         assert "Log in" in html or "password" in html, \
             f"POST {path} accessible without auth"
@@ -1301,7 +1353,7 @@ def test_register_page_loads(server):
 
 
 def test_register_creates_account(server):
-    """POST /register with valid data should create account + default profile."""
+    """POST /register with valid data should create account, profile, and auto-login."""
     import http.client
     from urllib.parse import urlencode
     conn = http.client.HTTPConnection("127.0.0.1", server)
@@ -1310,9 +1362,11 @@ def test_register_creates_account(server):
     conn.request("POST", "/register", body=body,
                  headers={"Content-Type": "application/x-www-form-urlencoded"})
     resp = conn.getresponse()
-    html = resp.read().decode()
-    assert resp.status == 200
-    assert "Account created" in html
+    assert resp.status == 303, f"Expected 303 redirect after registration, got {resp.status}"
+    location = resp.getheader("Location")
+    assert location == "./", f"Expected redirect to ./, got {location}"
+    cookie = resp.getheader("Set-Cookie")
+    assert "pancake_session=" in cookie, "No session cookie set after registration"
     conn.close()
     # Verify account exists
     from pancake.accounts import get_account, get_memberships_for_account
