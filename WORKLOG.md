@@ -6,10 +6,13 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
-- Fixed post-login redirect: `Location: /` was sending users to command center instead of Pancake when accessed via `/pancake/` path prefix. Changed to `Location: ./` (relative) which works for both path-prefix and subdomain access.
-- Fixed Think chat rejecting tasks without projects: system prompt rule 7 now routes projectless tasks to inbox instead of asking for a project. Inbox tasks shown in Think context.
-- Fixed drag-and-drop: dragging inbox task to project now updates task.project tag; dragging from project clears it. Inbox included in reorder payload.
-- Archive button: replaced unintuitive down arrow with proper archive box SVG icon.
+- Registration page: /register endpoint lets new users create accounts with auto-created personal profile
+- Profile creation UI: "+ New profile" button in profile switcher dropdown opens create modal
+- Member management UI: "Manage members" button (admin only) opens modal to list, invite, and remove members
+- Profile switcher shows with 1+ profiles (was hidden until 2+)
+- Login page links to registration
+- Fixed post-login redirect, Think chat inbox routing, drag-to-project tags, archive icon
+- 5 new registration tests (237 total pass)
 
 ### 2026-03-17 | Server
 - Fix 501 POST login error: login form used absolute `/login` action which broke behind Caddy's `/pancake/` path prefix (POST hit wrong backend). Changed to relative `login` action.
