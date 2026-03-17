@@ -6,6 +6,13 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-17 | Server
+- Recurring tasks due tomorrow now auto-sort to Active (was only today/overdue before)
+- Completing a recurring task sets manual=True so it stays in Up Next until deadline arrives
+- Due today/overdue overrides manual flag (clears it and moves to Active)
+- Mobile: assignee pills now visible (were hidden), project action buttons tightened
+- 197 tests pass (added 4 new auto_sort tests)
+
+### 2026-03-17 | Server
 - Added `@manual` override for recurring task auto-sort: when user drags a recurring task to a different section, it stays put instead of being auto-sorted back
 - Manual flag cleared on task completion (deadline advances), so auto-sort resumes for next cycle
 - 7 new tests for manual override behavior
@@ -64,17 +71,5 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 - Silence detection via Web Audio API analyser node (auto-stops after 2s silence)
 - Installed faster-whisper + ffmpeg on server
 
-### 2026-03-15 | Mac + Server
-- Added cookie-based auth system (login page, sessions, HttpOnly cookies with SameSite=Lax)
-- New endpoints: project rename/delete/archive, task undone, redo
-- Touch drag-and-drop for mobile task reordering
-- Chat panel improvements (close button, voice input)
-- User context save/load API, PWA manifest + service worker
-- Merged voice FAB (floating action button for mobile voice) from server session
-- 35 new server tests (236 total across all test files)
-- Fixed Pancake web auth: was using Caddy basicauth which broke on mobile Chrome
-- Pushed to GitHub via subtree, synced server repo
 
-### 2026-03-15 | Server
-- Fixed white page bug: static assets (style.css, app.js) were behind Pancake's own auth, returning login HTML instead of actual files. Made them auth-exempt since Caddy shared auth already protects the site.
 

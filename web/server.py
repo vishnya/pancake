@@ -710,7 +710,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.active[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
-                task.manual = False  # clear override, let auto_sort manage next cycle
+                task.manual = True  # keep in up_next until deadline arrives
                 # Completed for today — move to Up Next
                 p.active.pop(idx)
                 p.up_next.insert(0, task)
@@ -722,7 +722,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.up_next[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
-                task.manual = False  # clear override, let auto_sort manage next cycle
+                task.manual = True  # keep in up_next until deadline arrives
                 # Stays in up_next with new deadline
             else:
                 task = p.up_next.pop(idx)
@@ -732,7 +732,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.inbox[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
-                task.manual = False  # clear override, let auto_sort manage next cycle
+                task.manual = True  # keep in up_next until deadline arrives
                 # Move to up_next from inbox
                 p.inbox.pop(idx)
                 p.up_next.insert(0, task)

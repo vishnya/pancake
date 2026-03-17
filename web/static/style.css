@@ -1635,7 +1635,8 @@ body {
 
 
   .task-assignee, .task-assignee-empty {
-    display: none;
+    font-size: 9px;
+    padding: 1px 5px;
   }
 
   .task-controls {
@@ -1681,7 +1682,9 @@ body {
   .project-archive-btn,
   .project-delete-btn {
     opacity: 0.4;
-    padding: 6px;
+    padding: 4px;
+    width: 24px;
+    height: 24px;
   }
 
   /* Chat panel full-width on mobile */

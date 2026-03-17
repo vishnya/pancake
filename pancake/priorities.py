@@ -443,13 +443,14 @@ def sync_all_projects_to_obsidian(p: Priorities) -> None:
 def auto_sort_recurring(p: Priorities) -> bool:
     """Move recurring tasks between sections based on their deadline.
 
-    - Due today or overdue → Active
-    - Due tomorrow through 7 days → Up Next
+    - Due today/overdue or tomorrow → Active (due within 1 day)
+    - Due in 2-7 days → Up Next
     - Due 7+ days out → demote from Active to Up Next if needed
 
     Returns True if any tasks were moved.
     """
     today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
     week_out = today + timedelta(days=7)
     changed = False
 
@@ -461,19 +462,24 @@ def auto_sort_recurring(p: Priorities) -> bool:
         for i, task in enumerate(tasks):
             if not task.recurrence or not task.deadline:
                 continue
-            if task.manual:
-                continue  # user manually placed this task, respect their choice
             try:
                 due = datetime.strptime(task.deadline, "%Y-%m-%d").date()
             except ValueError:
                 continue
 
             if due <= today:
-                # Due today or overdue → should be Active
+                # Due today or overdue → should be Active (overrides manual)
+                if section_name != "active":
+                    task.manual = False  # deadline arrived, clear override
+                    moves.append((section_name, i, task, "active"))
+            elif task.manual:
+                continue  # respect manual placement for future tasks
+            elif due <= tomorrow:
+                # Due tomorrow → should be Active
                 if section_name != "active":
                     moves.append((section_name, i, task, "active"))
             elif due <= week_out:
-                # Due within the next week → should be Up Next
+                # Due in 2-7 days → should be Up Next
                 if section_name == "active":
                     moves.append((section_name, i, task, "up_next"))
                 elif section_name == "inbox":

@@ -599,10 +599,44 @@ def test_auto_sort_overdue_moves_to_active():
     assert len(p.up_next) == 0
 
 
-def test_auto_sort_due_tomorrow_stays_in_up_next():
-    """Recurring task due tomorrow should stay in up_next."""
+def test_auto_sort_due_tomorrow_moves_to_active():
+    """Recurring task due tomorrow in up_next should move to active."""
     p = Priorities(
         up_next=[Task(text="tomorrow task", recurrence="daily", deadline=_days_from_now(1))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 1
+    assert p.active[0].text == "tomorrow task"
+    assert len(p.up_next) == 0
+
+
+def test_auto_sort_due_tomorrow_stays_in_active():
+    """Recurring task due tomorrow already in active stays put."""
+    p = Priorities(
+        active=[Task(text="tomorrow task", recurrence="daily", deadline=_days_from_now(1))]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.active) == 1
+    assert len(p.up_next) == 0
+
+
+def test_auto_sort_due_tomorrow_from_inbox_to_active():
+    """Recurring task due tomorrow in inbox should move to active."""
+    p = Priorities(
+        inbox=[Task(text="tomorrow task", recurrence="daily", deadline=_days_from_now(1))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 1
+    assert len(p.inbox) == 0
+
+
+def test_auto_sort_due_day_after_tomorrow_stays_in_up_next():
+    """Recurring task due in 2 days should stay in up_next."""
+    p = Priorities(
+        up_next=[Task(text="future task", recurrence="daily", deadline=_days_from_now(2))]
     )
     changed = auto_sort_recurring(p)
     assert not changed
@@ -677,15 +711,27 @@ def test_auto_sort_due_in_active_within_week_demoted():
 # --- manual override tests ---
 
 
-def test_auto_sort_skips_manual_task():
-    """Recurring task with manual=True should not be auto-sorted."""
+def test_auto_sort_skips_manual_task_tomorrow():
+    """Recurring task with manual=True due tomorrow should not be auto-sorted to active."""
     p = Priorities(
-        up_next=[Task(text="daily standup", recurrence="daily", deadline=_today(), manual=True)]
+        up_next=[Task(text="daily standup", recurrence="daily", deadline=_days_from_now(1), manual=True)]
     )
     changed = auto_sort_recurring(p)
     assert not changed
     assert len(p.up_next) == 1
     assert len(p.active) == 0
+
+
+def test_auto_sort_overrides_manual_when_due_today():
+    """Manual flag is overridden when task is due today — deadline has arrived."""
+    p = Priorities(
+        up_next=[Task(text="daily standup", recurrence="daily", deadline=_today(), manual=True)]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 1
+    assert len(p.up_next) == 0
+    assert not p.active[0].manual  # manual cleared
 
 
 def test_auto_sort_skips_manual_in_active():
