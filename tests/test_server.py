@@ -1184,7 +1184,7 @@ def test_post_to_unknown_route_returns_404_not_501(server):
 
 
 def test_login_correct_password_redirects_to_root(auth_server):
-    """Successful login should redirect (303) to /."""
+    """Successful login should redirect (303) to ./ (relative)."""
     from urllib.parse import urlencode
     from urllib.request import Request
     import http.client
@@ -1196,7 +1196,7 @@ def test_login_correct_password_redirects_to_root(auth_server):
     resp = conn.getresponse()
     assert resp.status == 303, f"Login returned {resp.status}, expected 303 redirect"
     location = resp.getheader("Location")
-    assert location == "/", f"Login redirected to {location}, expected /"
+    assert location == "./", f"Login redirected to {location}, expected ./"
     conn.close()
 
 

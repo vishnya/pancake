@@ -408,7 +408,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                     self.send_header("Set-Cookie",
                         f"pancake_profile={memberships[0]['profile_id']}; SameSite=Lax; "
                         f"Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
-                self.send_header("Location", "/")
+                self.send_header("Location", "./")
                 self.end_headers()
             else:
                 self._serve_login(error="Wrong username or password.")
