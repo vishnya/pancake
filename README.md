@@ -4,7 +4,12 @@
 
 **Keep track of what matters.** Pancake manages your tasks, projects, and priorities in a single Markdown file that you own. Use the web UI from your phone, the `pk` CLI from your terminal, or edit the file directly in Obsidian. All three stay in sync.
 
-Works for individuals. Works for households — your partner can create their own account on the same server and share a family profile.
+Works for individuals. Works for households — one person hosts it, everyone else just opens the URL.
+
+### Who needs to install this?
+
+- **If someone already set up Pancake for your household** — you don't install anything. Just open the URL they gave you, click "Create account", and you're in.
+- **If you're starting fresh** — you're the host. Keep reading.
 
 ---
 
@@ -64,7 +69,9 @@ There's no cloud database. No API calls to external services (except Claude, if 
 
 ---
 
-## Install
+## Host setup
+
+This section is for the person hosting Pancake — the one setting it up for the first time. If someone already hosts it for you, skip to [Joining a household](#household-use).
 
 One command:
 
@@ -73,11 +80,11 @@ curl -fsSL https://raw.githubusercontent.com/vishnya/pancake/main/install.sh | b
 ```
 
 The installer walks you through everything:
-1. **Server or laptop?** — pick how you'll use it
+1. **Server or laptop?** — pick how you'll host it
 2. **Set a password** — for logging into the web UI
 3. **Done** — it sets up Python, the background service, and tells you where to go
 
-That's it. Open the URL it gives you and create your account.
+Open the URL it gives you and create your account. Then share the URL with anyone you want to invite.
 
 ### Server vs. laptop — which should I pick?
 
