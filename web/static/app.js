@@ -1531,8 +1531,9 @@ function applyProfileTheme(profileIndex) {
   if (!bar) {
     bar = document.createElement("div");
     bar.id = "profile-accent-bar";
-    bar.style.cssText = "position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;";
-    document.body.prepend(bar);
+    bar.style.cssText = "height:3px;border-radius:2px;margin-bottom:12px;";
+    const container = document.querySelector(".container");
+    if (container) container.prepend(bar);
   }
   bar.style.background = theme.accent;
   // Tint the profile label
