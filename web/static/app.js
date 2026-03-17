@@ -2215,9 +2215,8 @@ function onDrop(e) {
   // Update task project tag based on target section
   if (targetSection.startsWith("project:")) {
     task.project = targetSection.slice(8);
-  } else if (fromSection.startsWith("project:")) {
-    task.project = "";
   }
+  // When dragging FROM a project to active/up_next/inbox, keep the project tag
 
   const targetTasks = getTasksForSection(targetSection);
 
@@ -2373,9 +2372,8 @@ function touchEnd(e) {
   // Update task project tag based on target section
   if (targetSection.startsWith("project:")) {
     task.project = targetSection.slice(8);
-  } else if (fromSection.startsWith("project:")) {
-    task.project = "";
   }
+  // When dragging FROM a project to active/up_next/inbox, keep the project tag
 
   const targetTasks = getTasksForSection(targetSection);
 
