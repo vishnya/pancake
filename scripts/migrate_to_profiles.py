@@ -35,7 +35,7 @@ def migrate():
         if not password:
             print("ERROR: Set PANCAKE_PASSWORD env var to create the account")
             sys.exit(1)
-        create_account("rachel", "Rachel", password)
+        create_account("rachel", "Rachel", "", password)
         print("Created account: rachel")
     else:
         print("Account 'rachel' already exists")

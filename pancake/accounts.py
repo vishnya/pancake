@@ -84,7 +84,7 @@ def get_account(account_id: str) -> dict | None:
     return None
 
 
-def create_account(account_id: str, display_name: str, password: str, email: str = "") -> dict:
+def create_account(account_id: str, display_name: str, email: str, password: str) -> dict:
     accounts = load_accounts()
     if any(a["id"] == account_id for a in accounts):
         raise ValueError(f"Account '{account_id}' already exists")
@@ -242,5 +242,5 @@ def ensure_initialized(default_password: str | None = None) -> None:
     password = default_password or os.environ.get("PANCAKE_PASSWORD", "")
     if not password:
         return
-    create_account("rachel", "Rachel", password)
+    create_account("rachel", "Rachel", "", password)
     create_profile("personal", "Personal", "rachel")

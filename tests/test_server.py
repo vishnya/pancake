@@ -27,7 +27,7 @@ def _setup_test_account():
     from pancake.accounts import create_account, create_profile, add_membership
     from pancake.priorities import set_active_profile
     try:
-        create_account("testadmin", "Test Admin", "testpass123")
+        create_account("testadmin", "Test Admin", "", "testpass123")
     except ValueError:
         pass  # already exists
     try:

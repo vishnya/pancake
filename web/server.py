@@ -457,7 +457,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 self._serve_register("Passwords do not match.")
                 return
             try:
-                account = create_account(username, display_name or username.title(), password, email=email)
+                account = create_account(username, display_name or username.title(), email, password)
                 # Create a default personal profile for the new account
                 profile_id = f"{username}-personal"
                 try:

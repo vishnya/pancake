@@ -93,20 +93,20 @@ def test_different_passwords_different_hashes():
 # === Accounts ===
 
 def test_create_account():
-    a = create_account("alice", "Alice", "pass123")
+    a = create_account("alice", "Alice", "", "pass123")
     assert a["id"] == "alice"
     assert a["display_name"] == "Alice"
     assert "password_hash" in a
 
 
 def test_create_duplicate_account_raises():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     with pytest.raises(ValueError, match="already exists"):
-        create_account("alice", "Alice2", "pass2")
+        create_account("alice", "Alice2", "", "pass2")
 
 
 def test_get_account():
-    create_account("bob", "Bob", "bobpass")
+    create_account("bob", "Bob", "", "bobpass")
     a = get_account("bob")
     assert a is not None
     assert a["id"] == "bob"
@@ -114,14 +114,14 @@ def test_get_account():
 
 
 def test_authenticate_success():
-    create_account("carol", "Carol", "secret")
+    create_account("carol", "Carol", "", "secret")
     a = authenticate("carol", "secret")
     assert a is not None
     assert a["id"] == "carol"
 
 
 def test_authenticate_wrong_password():
-    create_account("dave", "Dave", "correct")
+    create_account("dave", "Dave", "", "correct")
     assert authenticate("dave", "wrong") is None
 
 
@@ -130,8 +130,8 @@ def test_authenticate_nonexistent_user():
 
 
 def test_load_save_accounts_roundtrip():
-    create_account("eve", "Eve", "evepass")
-    create_account("frank", "Frank", "frankpass")
+    create_account("eve", "Eve", "", "evepass")
+    create_account("frank", "Frank", "", "frankpass")
     accounts = load_accounts()
     assert len(accounts) == 2
     assert accounts[0]["id"] == "eve"
@@ -141,7 +141,7 @@ def test_load_save_accounts_roundtrip():
 # === Profiles ===
 
 def test_create_profile():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     p = create_profile("alice-personal", "Personal", "alice")
     assert p["id"] == "alice-personal"
     assert p["display_name"] == "Personal"
@@ -149,7 +149,7 @@ def test_create_profile():
 
 
 def test_create_profile_creates_directories():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("myprof", "My Profile", "alice")
     root = _data_root()
     assert (root / "vault" / "myprof").is_dir()
@@ -158,14 +158,14 @@ def test_create_profile_creates_directories():
 
 
 def test_create_duplicate_profile_raises():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("unique", "Unique", "alice")
     with pytest.raises(ValueError, match="already exists"):
         create_profile("unique", "Unique2", "alice")
 
 
 def test_get_profile():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("prof1", "Prof One", "alice")
     p = get_profile("prof1")
     assert p is not None
@@ -174,7 +174,7 @@ def test_get_profile():
 
 
 def test_create_profile_auto_creates_admin_membership():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("autoprof", "Auto", "alice")
     assert has_access("alice", "autoprof")
     assert get_role("alice", "autoprof") == "admin"
@@ -183,8 +183,8 @@ def test_create_profile_auto_creates_admin_membership():
 # === Memberships ===
 
 def test_add_membership():
-    create_account("alice", "Alice", "pass")
-    create_account("bob", "Bob", "pass")
+    create_account("alice", "Alice", "", "pass")
+    create_account("bob", "Bob", "", "pass")
     create_profile("shared", "Shared", "alice")
     add_membership("bob", "shared", "member")
     assert has_access("bob", "shared")
@@ -192,7 +192,7 @@ def test_add_membership():
 
 
 def test_no_duplicate_membership():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("prof", "Prof", "alice")
     add_membership("alice", "prof", "admin")  # duplicate of auto-created
     memberships = load_memberships()
@@ -201,8 +201,8 @@ def test_no_duplicate_membership():
 
 
 def test_remove_membership():
-    create_account("alice", "Alice", "pass")
-    create_account("bob", "Bob", "pass")
+    create_account("alice", "Alice", "", "pass")
+    create_account("bob", "Bob", "", "pass")
     create_profile("shared", "Shared", "alice")
     add_membership("bob", "shared", "member")
     assert has_access("bob", "shared")
@@ -211,7 +211,7 @@ def test_remove_membership():
 
 
 def test_get_memberships_for_account():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("prof1", "One", "alice")
     create_profile("prof2", "Two", "alice")
     memberships = get_memberships_for_account("alice")
@@ -221,8 +221,8 @@ def test_get_memberships_for_account():
 
 
 def test_get_memberships_for_profile():
-    create_account("alice", "Alice", "pass")
-    create_account("bob", "Bob", "pass")
+    create_account("alice", "Alice", "", "pass")
+    create_account("bob", "Bob", "", "pass")
     create_profile("family", "Family", "alice")
     add_membership("bob", "family", "member")
     members = get_memberships_for_profile("family")
@@ -233,15 +233,15 @@ def test_get_memberships_for_profile():
 
 
 def test_has_access():
-    create_account("alice", "Alice", "pass")
-    create_account("bob", "Bob", "pass")
+    create_account("alice", "Alice", "", "pass")
+    create_account("bob", "Bob", "", "pass")
     create_profile("private", "Private", "alice")
     assert has_access("alice", "private")
     assert not has_access("bob", "private")
 
 
 def test_get_role():
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("prof", "Prof", "alice")
     assert get_role("alice", "prof") == "admin"
     assert get_role("nobody", "prof") is None
@@ -289,7 +289,7 @@ def test_thread_local_vault_path():
 def test_profile_scoped_load_save():
     """Loading and saving works per-profile."""
     from pancake.priorities import set_active_profile, load, save, Priorities, Task
-    create_account("alice", "Alice", "pass")
+    create_account("alice", "Alice", "", "pass")
     create_profile("p1", "Profile 1", "alice")
     create_profile("p2", "Profile 2", "alice")
 
@@ -344,8 +344,8 @@ def test_ensure_initialized_skips_without_password():
 def test_family_sharing_scenario():
     """End-to-end: Rachel creates Family profile, invites Dan."""
     from pancake.priorities import set_active_profile, load, save, Priorities, Task
-    create_account("rachel", "Rachel", "rpass")
-    create_account("dan", "Dan", "dpass")
+    create_account("rachel", "Rachel", "", "rpass")
+    create_account("dan", "Dan", "", "dpass")
     create_profile("personal", "Personal", "rachel")
     create_profile("family", "Family", "rachel")
     create_profile("dan-board", "Dan's Board", "dan")
@@ -387,8 +387,8 @@ def test_family_sharing_scenario():
 # === Permissions ===
 
 def test_admin_vs_member_access():
-    create_account("rachel", "Rachel", "pass")
-    create_account("dan", "Dan", "pass")
+    create_account("rachel", "Rachel", "", "pass")
+    create_account("dan", "Dan", "", "pass")
     create_profile("family", "Family", "rachel")
     add_membership("dan", "family", "member")
     assert get_role("rachel", "family") == "admin"
@@ -397,5 +397,5 @@ def test_admin_vs_member_access():
     assert has_access("rachel", "family")
     assert has_access("dan", "family")
     # Outsider has no access
-    create_account("stranger", "Stranger", "pass")
+    create_account("stranger", "Stranger", "", "pass")
     assert not has_access("stranger", "family")
