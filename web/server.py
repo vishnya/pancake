@@ -255,8 +255,9 @@ _REGISTER_TEMPLATE = (
     "<style>" + _AUTH_STYLES + "</style></head><body>"
     '<form method="POST" action="register"><h1>Create Account</h1>'
     "%s"
-    '<input type="text" name="username" placeholder="Username" autofocus>'
-    '<input type="text" name="display_name" placeholder="Display Name">'
+    '<input type="email" name="email" placeholder="Email" autofocus required>'
+    '<input type="text" name="username" placeholder="Username">'
+    '<input type="text" name="display_name" placeholder="Display Name (optional)">'
     '<input type="password" name="password" placeholder="Password">'
     '<input type="password" name="password2" placeholder="Confirm Password">'
     '<button type="submit">Create Account</button>'
@@ -428,12 +429,22 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(length).decode()
             params = parse_qs(raw)
+            email = params.get("email", [""])[0].strip().lower()
             username = params.get("username", [""])[0].strip().lower()
             display_name = params.get("display_name", [""])[0].strip()
             password = params.get("password", [""])[0]
             password2 = params.get("password2", [""])[0]
-            if not username or not password:
-                self._serve_register("Username and password are required.")
+            if not email:
+                self._serve_register("Email is required.")
+                return
+            if "@" not in email or "." not in email.split("@")[-1]:
+                self._serve_register("Please enter a valid email address.")
+                return
+            # Auto-generate username from email if not provided
+            if not username:
+                username = email.split("@")[0].lower().replace(".", "").replace("+", "")
+            if not password:
+                self._serve_register("Password is required.")
                 return
             if len(username) < 2:
                 self._serve_register("Username must be at least 2 characters.")
@@ -445,7 +456,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 self._serve_register("Passwords do not match.")
                 return
             try:
-                account = create_account(username, display_name or username.title(), password)
+                account = create_account(username, display_name or username.title(), password, email=email)
                 # Create a default personal profile for the new account
                 profile_id = f"{username}-personal"
                 try:

@@ -84,11 +84,15 @@ def get_account(account_id: str) -> dict | None:
     return None
 
 
-def create_account(account_id: str, display_name: str, password: str) -> dict:
+def create_account(account_id: str, display_name: str, password: str, email: str = "") -> dict:
     accounts = load_accounts()
     if any(a["id"] == account_id for a in accounts):
         raise ValueError(f"Account '{account_id}' already exists")
+    if email and any(a.get("email", "").lower() == email.lower() for a in accounts):
+        raise ValueError(f"Email '{email}' is already registered")
     account = {"id": account_id, "display_name": display_name, "password_hash": hash_password(password)}
+    if email:
+        account["email"] = email.lower()
     accounts.append(account)
     save_accounts(accounts)
     return account
