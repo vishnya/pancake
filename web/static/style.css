@@ -312,6 +312,23 @@ h1 {
   border-color: #4a6fa5;
 }
 
+.task-sub-delete-task {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: none;
+  border: 1px solid #3a2020;
+  border-radius: 4px;
+  color: #c05050;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.task-sub-delete-task:hover {
+  background: #3a2020;
+  color: #e07070;
+}
+
 /* Deadline pills */
 .task-deadline {
   font-size: 10px;
@@ -1468,9 +1485,15 @@ body {
   }
 
   .task-delete {
-    opacity: 0.5;
-    padding: 4px 8px;
-    font-size: 14px;
+    display: none;
+  }
+
+  .task-controls {
+    width: 72px;
+  }
+
+  .task-deadline-clear {
+    opacity: 0.4;
   }
 
   .task-priority {
@@ -1553,10 +1576,6 @@ body {
 
   .task-text {
     font-size: 14px;
-  }
-
-  .task-deadline-empty {
-    opacity: 0.5;
   }
 
   /* Floating Action Button -- mobile only */

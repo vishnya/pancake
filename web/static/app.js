@@ -606,6 +606,28 @@ function buildTaskEl(task, section, index, opts = {}) {
   addNoteRow.appendChild(addNoteInput);
   sub.appendChild(addNoteRow);
 
+  // Delete task button (primary delete action on mobile)
+  const subDel = document.createElement("button");
+  subDel.className = "task-sub-delete-task";
+  subDel.textContent = "Delete task";
+  subDel.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const doDelete = () => {
+      if (opts.deleteHandler) opts.deleteHandler();
+      else api("task/delete", { section, index });
+    };
+    const skipUntil = localStorage.getItem("pancake_skip_delete_confirm");
+    if (skipUntil && Date.now() < parseInt(skipUntil)) {
+      doDelete();
+    } else {
+      showDeleteConfirm(task.text, () => {
+        localStorage.setItem("pancake_skip_delete_confirm", String(Date.now() + 86400000));
+        doDelete();
+      });
+    }
+  });
+  sub.appendChild(subDel);
+
   wrapper.appendChild(sub);
   return wrapper;
 }
