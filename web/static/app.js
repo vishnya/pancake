@@ -466,7 +466,7 @@ function buildTaskEl(task, section, index, opts = {}) {
   }
 
   // Assignee pill
-  if (!section.startsWith("project:")) {
+  {  // Show for all tasks including project tasks
     const assigneeContainer = document.createElement("span");
     assigneeContainer.style.position = "relative";
     assigneeContainer.style.flexShrink = "0";
@@ -1002,7 +1002,7 @@ function buildDoneRow(task) {
   }
 
   // Assignee pill
-  if (!section.startsWith("project:")) {
+  {  // Show for all tasks including project tasks
     const assigneeContainer = document.createElement("span");
     assigneeContainer.style.position = "relative";
     assigneeContainer.style.flexShrink = "0";
