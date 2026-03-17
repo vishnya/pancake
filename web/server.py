@@ -29,6 +29,7 @@ from pancake.accounts import (
     ensure_initialized, data_dir_for_profile, load_accounts,
 )
 import pancake.tools
+from pancake.email import send_assignment_email, send_reminder_email
 from pancake.tools import TOOLS, execute_tool
 
 PORT = 5790
@@ -629,6 +630,10 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 target = body.get("account_id", "")
                 remove_membership(target, slug)
                 self._json_response({"ok": True})
+        elif self.path == "/api/task/assign":
+            self._handle_assign(body, account)
+        elif self.path == "/api/task/remind":
+            self._handle_remind(body, account)
         else:
             self.send_error(404)
 
@@ -659,14 +664,14 @@ class PancakeHandler(SimpleHTTPRequestHandler):
     def _task_dict(t):
         return {"text": t.text, "project": t.project, "done": t.done,
                 "notes": t.notes, "deadline": t.deadline, "priority": t.priority,
-                "recurrence": t.recurrence}
+                "recurrence": t.recurrence, "assignee": t.assignee}
 
     @staticmethod
     def _task_from_dict(t):
         return Task(text=t["text"], project=t.get("project", ""), done=t.get("done", False),
                      notes=t.get("notes", []),
                      deadline=t.get("deadline", ""), priority=t.get("priority", 0),
-                     recurrence=t.get("recurrence", ""))
+                     recurrence=t.get("recurrence", ""), assignee=t.get("assignee", ""))
 
     def _get_priorities(self) -> dict:
         p = load()
@@ -1020,6 +1025,57 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             f.write(content)
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         self._json_response(self._get_priorities())
+
+
+    def _handle_assign(self, body, account):
+        """Assign or unassign a task. Sends email on assignment."""
+        p, task = self._get_task(body)
+        if not task:
+            self._json_response({"error": "task not found"}, 404)
+            return
+        assignee = body.get("assignee", "")
+        old_assignee = task.assignee
+        task.assignee = assignee
+        _snapshot_and_save(p)
+
+        # Send assignment email if assigning (not unassigning)
+        if assignee and assignee != old_assignee:
+            target_account = get_account(assignee)
+            if target_account and target_account.get("email"):
+                app_url = os.environ.get("PANCAKE_URL", "")
+                send_assignment_email(
+                    to_email=target_account["email"],
+                    task_text=task.text,
+                    project=task.project,
+                    deadline=task.deadline,
+                    assigned_by=account.get("display_name", account["id"]),
+                    app_url=app_url,
+                )
+        self._json_response(self._get_priorities())
+
+    def _handle_remind(self, body, account):
+        """Send a reminder email to the task assignee."""
+        p, task = self._get_task(body)
+        if not task:
+            self._json_response({"error": "task not found"}, 404)
+            return
+        if not task.assignee:
+            self._json_response({"error": "task has no assignee"}, 400)
+            return
+        target_account = get_account(task.assignee)
+        if not target_account or not target_account.get("email"):
+            self._json_response({"error": "assignee has no email"}, 400)
+            return
+        app_url = os.environ.get("PANCAKE_URL", "")
+        send_reminder_email(
+            to_email=target_account["email"],
+            task_text=task.text,
+            project=task.project,
+            deadline=task.deadline,
+            reminded_by=account.get("display_name", account["id"]),
+            app_url=app_url,
+        )
+        self._json_response({"ok": True})
 
     def _handle_claude(self, body):
         self._json_response({"error": "Terminal launch not available on remote server. Use the chat panel instead."}, 400)
