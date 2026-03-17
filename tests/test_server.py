@@ -627,6 +627,35 @@ def test_reorder_projects_partial(server):
     assert set(names) == {"A", "B", "C"}
 
 
+def test_reorder_inbox_to_project_updates_project_tag(server):
+    """Dragging a task from inbox to a project should update the task's project field."""
+    _seed(
+        inbox=[Task(text="unsorted task")],
+        projects=[ProjectInfo(name="MyProj", tasks=[])],
+    )
+    data = _api(server, "reorder", {
+        "inbox": [],
+        "projects": {"MyProj": [{"text": "unsorted task", "project": "MyProj", "done": False, "notes": [], "deadline": ""}]},
+    })
+    assert len(data["inbox"]) == 0
+    proj = next(p for p in data["projects"] if p["name"] == "MyProj")
+    assert len(proj["tasks"]) == 1
+    assert proj["tasks"][0]["text"] == "unsorted task"
+
+
+def test_reorder_includes_inbox(server):
+    """Reorder payload with inbox field should update inbox tasks."""
+    _seed(inbox=[Task(text="a"), Task(text="b")])
+    data = _api(server, "reorder", {
+        "inbox": [
+            {"text": "b", "project": "", "done": False, "notes": [], "deadline": ""},
+            {"text": "a", "project": "", "done": False, "notes": [], "deadline": ""},
+        ],
+    })
+    assert data["inbox"][0]["text"] == "b"
+    assert data["inbox"][1]["text"] == "a"
+
+
 def test_reorder_projects_undo(server):
     _seed(projects=[
         ProjectInfo(name="A", tasks=[Task(text="t")]),

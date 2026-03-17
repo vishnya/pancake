@@ -1091,7 +1091,7 @@ function buildProjectCard(proj, collapsed) {
   const archiveBtn = document.createElement("button");
   archiveBtn.className = "project-archive-btn";
   archiveBtn.title = "Archive project";
-  archiveBtn.textContent = "\u2193";
+  archiveBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>';
   archiveBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     api("project/archive", { name: proj.name, archived: true });
@@ -1880,8 +1880,11 @@ function onDrop(e) {
 
   sourceTasks.splice(fromIdx, 1);
 
-  if (fromSection.startsWith("project:") && !targetSection.startsWith("project:")) {
-    task.project = fromSection.slice(8);
+  // Update task project tag based on target section
+  if (targetSection.startsWith("project:")) {
+    task.project = targetSection.slice(8);
+  } else if (fromSection.startsWith("project:")) {
+    task.project = "";
   }
 
   const targetTasks = getTasksForSection(targetSection);
@@ -1898,7 +1901,7 @@ function onDrop(e) {
 
   targetTasks.splice(insertIdx, 0, task);
 
-  const payload = { active: state.active, up_next: state.up_next, projects: {} };
+  const payload = { active: state.active, up_next: state.up_next, inbox: state.inbox, projects: {} };
   const affected = new Set();
   if (fromSection.startsWith("project:")) affected.add(fromSection.slice(8));
   if (targetSection.startsWith("project:")) affected.add(targetSection.slice(8));
@@ -2035,8 +2038,11 @@ function touchEnd(e) {
 
   sourceTasks.splice(fromIdx, 1);
 
-  if (fromSection.startsWith("project:") && !targetSection.startsWith("project:")) {
-    task.project = fromSection.slice(8);
+  // Update task project tag based on target section
+  if (targetSection.startsWith("project:")) {
+    task.project = targetSection.slice(8);
+  } else if (fromSection.startsWith("project:")) {
+    task.project = "";
   }
 
   const targetTasks = getTasksForSection(targetSection);
@@ -2054,7 +2060,7 @@ function touchEnd(e) {
 
   targetTasks.splice(insertIdx, 0, task);
 
-  const payload = { active: state.active, up_next: state.up_next, projects: {} };
+  const payload = { active: state.active, up_next: state.up_next, inbox: state.inbox, projects: {} };
   const affected = new Set();
   if (fromSection.startsWith("project:")) affected.add(fromSection.slice(8));
   if (targetSection.startsWith("project:")) affected.add(targetSection.slice(8));
