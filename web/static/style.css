@@ -311,6 +311,8 @@ h1 {
   border-radius: 8px;
   white-space: nowrap;
   flex-shrink: 0;
+  min-width: 52px;
+  text-align: center;
 }
 
 .deadline-normal {
