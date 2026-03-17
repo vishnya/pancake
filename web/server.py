@@ -19,7 +19,7 @@ from socketserver import ThreadingMixIn
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date, set_active_profile
+from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date, set_active_profile, auto_sort_recurring
 from pancake.context import build_context
 from pancake.chat import is_available as chat_is_available, stream_response, stream_response_with_tools
 from pancake.accounts import (
@@ -675,6 +675,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
 
     def _get_priorities(self) -> dict:
         p = load()
+        if auto_sort_recurring(p):
+            save(p)
         td = self._task_dict
         return {
             "active": [td(t) for t in p.active],
@@ -706,6 +708,9 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.active[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                # Completed for today — move to Up Next
+                p.active.pop(idx)
+                p.up_next.insert(0, task)
             else:
                 task = p.active.pop(idx)
                 task.done = True
@@ -714,6 +719,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.up_next[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                # Stays in up_next with new deadline
             else:
                 task = p.up_next.pop(idx)
                 task.done = True
@@ -722,6 +728,9 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.inbox[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                # Move to up_next from inbox
+                p.inbox.pop(idx)
+                p.up_next.insert(0, task)
             else:
                 task = p.inbox.pop(idx)
                 task.done = True

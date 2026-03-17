@@ -432,6 +432,65 @@ def sync_all_projects_to_obsidian(p: Priorities) -> None:
         sync_project_to_obsidian(proj)
 
 
+def auto_sort_recurring(p: Priorities) -> bool:
+    """Move recurring tasks between sections based on their deadline.
+
+    - Due today or overdue → Active
+    - Due tomorrow through 7 days → Up Next
+    - Due 7+ days out → demote from Active to Up Next if needed
+
+    Returns True if any tasks were moved.
+    """
+    today = datetime.now().date()
+    week_out = today + timedelta(days=7)
+    changed = False
+
+    # Collect recurring tasks from all three sections with their source info
+    moves: list[tuple[str, int, Task, str]] = []  # (from_section, idx, task, to_section)
+
+    for section_name in ("active", "up_next", "inbox"):
+        tasks = getattr(p, section_name)
+        for i, task in enumerate(tasks):
+            if not task.recurrence or not task.deadline:
+                continue
+            try:
+                due = datetime.strptime(task.deadline, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+
+            if due <= today:
+                # Due today or overdue → should be Active
+                if section_name != "active":
+                    moves.append((section_name, i, task, "active"))
+            elif due <= week_out:
+                # Due within the next week → should be Up Next
+                if section_name == "active":
+                    moves.append((section_name, i, task, "up_next"))
+                elif section_name == "inbox":
+                    moves.append((section_name, i, task, "up_next"))
+            else:
+                # Due 7+ days out → shouldn't be Active
+                if section_name == "active":
+                    moves.append((section_name, i, task, "up_next"))
+
+    # Apply moves in reverse index order to avoid index shifting
+    for section_name in ("active", "up_next", "inbox"):
+        section_moves = [(i, task, to) for (s, i, task, to) in moves if s == section_name]
+        for i, task, to in sorted(section_moves, key=lambda x: x[0], reverse=True):
+            getattr(p, section_name).pop(i)
+
+    # Add tasks to their target sections
+    for _, _, task, to_section in moves:
+        if to_section == "active":
+            p.active.append(task)
+        elif to_section == "up_next":
+            # Insert at top of up_next for visibility
+            p.up_next.insert(0, task)
+        changed = changed or bool(moves)
+
+    return changed
+
+
 def now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 

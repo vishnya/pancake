@@ -560,3 +560,115 @@ def test_render_no_recurrence():
     p = Priorities(active=[Task(text="normal")])
     text = render(p)
     assert "@every(" not in text
+
+
+# --- auto_sort_recurring tests ---
+
+from pancake.priorities import auto_sort_recurring
+from datetime import datetime, timedelta
+
+
+def _today():
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _days_from_now(n):
+    return (datetime.now() + timedelta(days=n)).strftime("%Y-%m-%d")
+
+
+def test_auto_sort_due_today_moves_to_active():
+    """Recurring task due today in up_next should move to active."""
+    p = Priorities(
+        up_next=[Task(text="daily standup", recurrence="daily", deadline=_today())]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 1
+    assert p.active[0].text == "daily standup"
+    assert len(p.up_next) == 0
+
+
+def test_auto_sort_overdue_moves_to_active():
+    """Recurring task overdue in up_next should move to active."""
+    p = Priorities(
+        up_next=[Task(text="missed task", recurrence="daily", deadline=_days_from_now(-2))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 1
+    assert len(p.up_next) == 0
+
+
+def test_auto_sort_due_tomorrow_stays_in_up_next():
+    """Recurring task due tomorrow should stay in up_next."""
+    p = Priorities(
+        up_next=[Task(text="tomorrow task", recurrence="daily", deadline=_days_from_now(1))]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.up_next) == 1
+    assert len(p.active) == 0
+
+
+def test_auto_sort_due_in_week_from_inbox_to_up_next():
+    """Recurring task due within a week in inbox should move to up_next."""
+    p = Priorities(
+        inbox=[Task(text="weekly review", recurrence="weekly", deadline=_days_from_now(3))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.up_next) == 1
+    assert p.up_next[0].text == "weekly review"
+    assert len(p.inbox) == 0
+
+
+def test_auto_sort_due_far_future_demoted_from_active():
+    """Recurring task due 10+ days out shouldn't be in active."""
+    p = Priorities(
+        active=[Task(text="monthly report", recurrence="monthly", deadline=_days_from_now(15))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 0
+    assert len(p.up_next) == 1
+
+
+def test_auto_sort_already_active_due_today_no_change():
+    """Recurring task due today already in active stays put."""
+    p = Priorities(
+        active=[Task(text="daily standup", recurrence="daily", deadline=_today())]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.active) == 1
+
+
+def test_auto_sort_non_recurring_not_moved():
+    """Non-recurring tasks should not be moved by auto_sort."""
+    p = Priorities(
+        up_next=[Task(text="one-off", deadline=_today())]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.up_next) == 1
+
+
+def test_auto_sort_no_deadline_not_moved():
+    """Recurring task without a deadline should not be moved."""
+    p = Priorities(
+        up_next=[Task(text="no deadline", recurrence="daily")]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.up_next) == 1
+
+
+def test_auto_sort_due_in_active_within_week_demoted():
+    """Recurring task due in 3 days sitting in active should move to up_next."""
+    p = Priorities(
+        active=[Task(text="future task", recurrence="weekly", deadline=_days_from_now(3))]
+    )
+    changed = auto_sort_recurring(p)
+    assert changed
+    assert len(p.active) == 0
+    assert len(p.up_next) == 1

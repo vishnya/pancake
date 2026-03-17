@@ -1102,17 +1102,22 @@ def test_set_recurrence_on_project_task(server):
     assert data["projects"][0]["tasks"][0]["recurrence"] == "weekly"
 
 
-def test_recurring_task_done_resets_in_place(server):
-    """Checking off a recurring task should NOT move it to Done -- it resets with a new deadline."""
+def test_recurring_task_done_moves_to_up_next(server):
+    """Checking off a recurring task in active moves it to up_next with a new deadline."""
     p = Priorities(
         active=[Task(text="Anki", project="SP", recurrence="daily", deadline="2026-03-16")],
         projects=[ProjectInfo(name="SP")],
     )
     save(p)
     data = _api(server, "task/done", {"section": "active", "index": 0})
-    assert len(data["active"]) == 1  # still in active
-    assert len(data["done"]) == 0  # NOT in done
-    assert data["active"][0]["deadline"] != "2026-03-16"  # deadline bumped
+    # Should be in up_next now, not active or done
+    active_texts = [t["text"] for t in data["active"]]
+    up_next_texts = [t["text"] for t in data["up_next"]]
+    assert "Anki" not in active_texts
+    assert "Anki" in up_next_texts
+    assert len(data["done"]) == 0
+    anki = next(t for t in data["up_next"] if t["text"] == "Anki")
+    assert anki["deadline"] != "2026-03-16"  # deadline bumped
 
 
 def test_nonrecurring_task_done_moves_to_done(server):
@@ -1145,7 +1150,41 @@ def test_recurrence_in_task_dict(server):
     p = Priorities(active=[Task(text="t", recurrence="weekly", deadline="2026-03-20")])
     save(p)
     data = _api(server, "priorities")
-    assert data["active"][0]["recurrence"] == "weekly"
+    # auto_sort may move it out of active if due date is far out
+    all_tasks = data["active"] + data["up_next"]
+    match = [t for t in all_tasks if t["text"] == "t"]
+    assert len(match) == 1
+    assert match[0]["recurrence"] == "weekly"
+
+
+def test_auto_sort_recurring_on_api_read(server):
+    """Recurring task due today in up_next should auto-promote to active on API read."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    p = Priorities(
+        up_next=[Task(text="daily standup", recurrence="daily", deadline=today)],
+    )
+    save(p)
+    data = _api(server, "priorities")
+    active_texts = [t["text"] for t in data["active"]]
+    up_next_texts = [t["text"] for t in data["up_next"]]
+    assert "daily standup" in active_texts
+    assert "daily standup" not in up_next_texts
+
+
+def test_auto_sort_recurring_far_future_demoted(server):
+    """Recurring task due far out should not stay in active."""
+    from datetime import datetime, timedelta
+    far = (datetime.now() + timedelta(days=15)).strftime("%Y-%m-%d")
+    p = Priorities(
+        active=[Task(text="monthly", recurrence="monthly", deadline=far)],
+    )
+    save(p)
+    data = _api(server, "priorities")
+    active_texts = [t["text"] for t in data["active"]]
+    up_next_texts = [t["text"] for t in data["up_next"]]
+    assert "monthly" not in active_texts
+    assert "monthly" in up_next_texts
 
 
 def test_auth_expired_session(auth_server):
