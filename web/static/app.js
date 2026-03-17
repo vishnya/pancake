@@ -388,6 +388,8 @@ function deadlineClass(dl) {
 }
 
 function buildTaskEl(task, section, index, opts = {}) {
+  let proj = null;
+  let assigneeContainer = null;
   const wrapper = document.createElement("div");
   wrapper.className = "task-wrapper";
   const key = taskKey(section, index);
@@ -454,7 +456,7 @@ function buildTaskEl(task, section, index, opts = {}) {
 
   // Project pill (skip for project-internal tasks)
   if (!section.startsWith("project:")) {
-    const proj = document.createElement("span");
+    proj = document.createElement("span");
     proj.className = "task-project";
     proj.textContent = task.project || "no project";
     const color = getProjectColor(task.project);
@@ -462,12 +464,12 @@ function buildTaskEl(task, section, index, opts = {}) {
       proj.style.background = color.bg;
       proj.style.color = color.fg;
     }
-    div.appendChild(proj);
+    // proj appended later, after text
   }
 
   // Assignee pill
   {  // Show for all tasks including project tasks
-    const assigneeContainer = document.createElement("span");
+    assigneeContainer = document.createElement("span");
     assigneeContainer.style.position = "relative";
     assigneeContainer.style.flexShrink = "0";
 
@@ -549,7 +551,7 @@ function buildTaskEl(task, section, index, opts = {}) {
       });
       assigneeContainer.appendChild(remindBtn);
     }
-    div.appendChild(assigneeContainer);
+    // assigneeContainer appended later, after text
   }
 
   const del = document.createElement("button");
@@ -593,6 +595,9 @@ function buildTaskEl(task, section, index, opts = {}) {
   div.appendChild(cb);
   div.appendChild(pri);
   div.appendChild(text);
+  // Project pill and assignee after text (keeps checkbox column-aligned across rows)
+  if (proj) div.appendChild(proj);
+  if (assigneeContainer) div.appendChild(assigneeContainer);
 
   // Right-side controls in a fixed-width container for alignment
   const controls = document.createElement("span");
@@ -994,7 +999,7 @@ function buildDoneRow(task) {
 
   // Assignee pill
   {  // Show for all tasks including project tasks
-    const assigneeContainer = document.createElement("span");
+    assigneeContainer = document.createElement("span");
     assigneeContainer.style.position = "relative";
     assigneeContainer.style.flexShrink = "0";
 
@@ -1076,7 +1081,7 @@ function buildDoneRow(task) {
       });
       assigneeContainer.appendChild(remindBtn);
     }
-    div.appendChild(assigneeContainer);
+    // assigneeContainer appended later, after text
   }
 
   const del = document.createElement("button");
