@@ -7,6 +7,9 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ### 2026-03-17 | Server
 - Fixed post-login redirect: `Location: /` was sending users to command center instead of Pancake when accessed via `/pancake/` path prefix. Changed to `Location: ./` (relative) which works for both path-prefix and subdomain access.
+- Fixed Think chat rejecting tasks without projects: system prompt rule 7 now routes projectless tasks to inbox instead of asking for a project. Inbox tasks shown in Think context.
+- Fixed drag-and-drop: dragging inbox task to project now updates task.project tag; dragging from project clears it. Inbox included in reorder payload.
+- Archive button: replaced unintuitive down arrow with proper archive box SVG icon.
 
 ### 2026-03-17 | Server
 - Fix 501 POST login error: login form used absolute `/login` action which broke behind Caddy's `/pancake/` path prefix (POST hit wrong backend). Changed to relative `login` action.
