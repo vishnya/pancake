@@ -1526,41 +1526,77 @@ body {
     display: none;
   }
 
-  .container {
-    padding: 16px 10px;
+  /* Task layout: checkbox + text on first line, pills below */
+  .task {
+    flex-wrap: wrap;
+    padding: 10px 8px;
+    gap: 4px 8px;
   }
 
-  .task {
-    padding: 10px 8px;
-    gap: 6px;
+  .task-text {
+    flex: 1 1 60%;
+    font-size: 15px;
+    min-width: 0;
+    order: 1;
   }
 
   .task input[type="checkbox"] {
     width: 20px;
     height: 20px;
-    padding: 12px;
-    margin: 0;
+    padding: 0;
+    margin: 2px 0;
     flex-shrink: 0;
-  }
-
-  .task-delete {
-    opacity: 0.5;
-    padding: 10px;
-    font-size: 14px;
+    order: 0;
   }
 
   .task-priority {
     opacity: 1;
+    order: 2;
   }
 
+  .task-controls {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .task-project {
+    order: 10;
+    font-size: 10px;
+    margin-left: 28px;
+  }
+
+  .task-assignee, .task-assignee-empty {
+    order: 11;
+    font-size: 10px;
+  }
+
+  .task-delete {
+    opacity: 0.5;
+    padding: 6px;
+    font-size: 14px;
+  }
 
   .pri-mark {
-    font-size: 16px;
-    padding: 8px 6px;
-    min-width: 28px;
-    min-height: 28px;
+    font-size: 14px;
+    padding: 4px 3px;
+    min-width: 20px;
+    min-height: 20px;
     text-align: center;
   }
+
+
+  .container {
+    padding: 16px 10px;
+  }
+
+
+
+
+
+
+
+
+
 
   .project-header {
     padding: 12px;
