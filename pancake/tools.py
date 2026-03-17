@@ -157,6 +157,24 @@ TOOLS = [
             "required": ["text", "priority"],
         },
     },
+    {
+        "name": "assign_task",
+        "description": "Assign a task to a household member. Searches all tasks by fuzzy match. Use this when the user says things like 'assign the train tickets to Mike' or 'that one is Mike\'s job'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Text to fuzzy-match against existing tasks",
+                },
+                "assignee": {
+                    "type": "string",
+                    "description": "Username of the person to assign to. Use empty string to unassign.",
+                },
+            },
+            "required": ["text", "assignee"],
+        },
+    },
 ]
 
 
@@ -288,6 +306,44 @@ def execute_tool(name: str, tool_input: dict) -> str:
         best_task.priority = priority
         _save(p)
         return f"Set \"{best_task.text}\" to {labels[priority]} priority"
+
+    elif name == "assign_task":
+        query = tool_input["text"].lower()
+        assignee = tool_input["assignee"]
+        best_task = None
+        best_score = 0
+        for section_name, tasks in [("active", p.active), ("up_next", p.up_next), ("inbox", p.inbox)]:
+            for task in tasks:
+                score = _fuzzy_score(query, task.text.lower())
+                if score > best_score:
+                    best_score = score
+                    best_task = task
+        for proj in p.projects:
+            for task in proj.tasks:
+                score = _fuzzy_score(query, task.text.lower())
+                if score > best_score:
+                    best_score = score
+                    best_task = task
+        if not best_task or best_score < 0.3:
+            return f"No task matching \"{tool_input['text']}\" found"
+        best_task.assignee = assignee
+        _save(p)
+        if assignee:
+            from pancake.accounts import get_account
+            from pancake.email import send_assignment_email
+            import os
+            target = get_account(assignee)
+            if target and target.get("email"):
+                send_assignment_email(
+                    to_email=target["email"],
+                    task_text=best_task.text,
+                    project=best_task.project,
+                    deadline=best_task.deadline,
+                    assigned_by="Pancake Think",
+                    app_url=os.environ.get("PANCAKE_URL", ""),
+                )
+            return f"Assigned \"{best_task.text}\" to {assignee}"
+        return f"Unassigned \"{best_task.text}\""
 
     return f"Unknown tool: {name}"
 

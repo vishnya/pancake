@@ -592,7 +592,6 @@ function buildTaskEl(task, section, index, opts = {}) {
   // Right-side controls in a fixed-width container for alignment
   const controls = document.createElement("span");
   controls.className = "task-controls";
-  controls.appendChild(del);
   {
     const dlPill = document.createElement("span");
     if (task.recurrence) {
@@ -661,6 +660,7 @@ function buildTaskEl(task, section, index, opts = {}) {
     }
     controls.appendChild(dlClear);
   }
+  controls.appendChild(del);
   div.appendChild(controls);
 
   // Move up/down buttons
@@ -1514,6 +1514,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
 let _profileData = null;
 
+// Profile theme colors -- subtle accent per profile
+const PROFILE_COLORS = [
+  { accent: "#5cb85c", bg: "#1a2e1a" },  // green
+  { accent: "#d4a855", bg: "#2e2a1a" },  // gold
+  { accent: "#a0b4d0", bg: "#1a1a2e" },  // blue (default)
+  { accent: "#d4a0a0", bg: "#2e1a1a" },  // rose
+  { accent: "#b8a9d4", bg: "#2a1a2e" },  // lavender
+  { accent: "#8bc6a8", bg: "#1a2e2a" },  // mint
+];
+
+function applyProfileTheme(profileIndex) {
+  const theme = PROFILE_COLORS[profileIndex % PROFILE_COLORS.length];
+  // Add a thin colored line at the very top
+  let bar = document.getElementById("profile-accent-bar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "profile-accent-bar";
+    bar.style.cssText = "position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;";
+    document.body.prepend(bar);
+  }
+  bar.style.background = theme.accent;
+  // Tint the profile label
+  const label = document.querySelector(".profile-label");
+  if (label) {
+    label.style.borderColor = theme.accent;
+    label.style.color = theme.accent;
+  }
+}
+
+
 async function initProfileSwitcher() {
   try {
     const res = await fetch("api/profiles");
@@ -1527,6 +1557,8 @@ async function initProfileSwitcher() {
     const menu = switcher.querySelector(".profile-menu");
     const active = data.profiles.find(p => p.profile_id === data.active_profile);
     label.textContent = active ? active.display_name : (data.profiles[0]?.display_name || "Profile");
+    const activeIdx = data.profiles.findIndex(p => p.profile_id === data.active_profile);
+    applyProfileTheme(activeIdx >= 0 ? activeIdx : 0);
     label.addEventListener("click", () => menu.classList.toggle("open"));
     menu.innerHTML = "";
     data.profiles.forEach(p => {
