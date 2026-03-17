@@ -393,6 +393,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         return {
             "active": [td(t) for t in p.active],
             "up_next": [td(t) for t in p.up_next],
+            "inbox": [td(t) for t in p.inbox],
             "projects": [{"name": pr.name, "description": pr.description, "tasks": [td(t) for t in pr.tasks], "archived": pr.archived} for pr in p.projects],
             "done": [td(t) for t in p.done],
             "notes": p.notes,
@@ -401,8 +402,11 @@ class PancakeHandler(SimpleHTTPRequestHandler):
     def _handle_add_task(self, body):
         p = load()
         task = Task(text=body["text"], project=body.get("project", ""))
-        if body.get("section") == "active":
+        section = body.get("section", "up_next")
+        if section == "active":
             p.active.append(task)
+        elif section == "inbox":
+            p.inbox.append(task)
         else:
             p.up_next.insert(0, task)
         _snapshot_and_save(p)
@@ -426,6 +430,14 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 task.deadline = next_due_date(task.deadline, task.recurrence)
             else:
                 task = p.up_next.pop(idx)
+                task.done = True
+                p.done.insert(0, task)
+        elif section == "inbox" and idx < len(p.inbox):
+            task = p.inbox[idx]
+            if task.recurrence:
+                task.deadline = next_due_date(task.deadline, task.recurrence)
+            else:
+                task = p.inbox.pop(idx)
                 task.done = True
                 p.done.insert(0, task)
         _snapshot_and_save(p)
@@ -465,6 +477,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             p.active = [tf(t) for t in body["active"]]
         if "up_next" in body:
             p.up_next = [tf(t) for t in body["up_next"]]
+        if "inbox" in body:
+            p.inbox = [tf(t) for t in body["inbox"]]
         if "projects" in body:
             for proj_name, tasks in body["projects"].items():
                 proj = p.get_project(proj_name)

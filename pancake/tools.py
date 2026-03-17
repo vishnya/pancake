@@ -16,7 +16,7 @@ def _save(p):
 TOOLS = [
     {
         "name": "add_task",
-        "description": "Add a task to the user's Active or Up Next list. Use this when the user asks to add, create, or track a new task that isn't tied to a specific project.",
+        "description": "Add a task. If the user specifies a section (active, up_next), put it there. If no section is specified and the task has no project, put it in inbox. If a project is mentioned, use add_project_task instead.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -30,8 +30,8 @@ TOOLS = [
                 },
                 "section": {
                     "type": "string",
-                    "enum": ["active", "up_next"],
-                    "description": "Which section to add to. Defaults to up_next.",
+                    "enum": ["active", "up_next", "inbox"],
+                    "description": "Which section to add to. Defaults to inbox for unassigned tasks.",
                 },
             },
             "required": ["text"],
@@ -166,11 +166,13 @@ def execute_tool(name: str, tool_input: dict) -> str:
 
     if name == "add_task":
         task = Task(text=tool_input["text"], project=tool_input.get("project", ""))
-        section = tool_input.get("section", "up_next")
+        section = tool_input.get("section", "inbox")
         if section == "active":
             p.active.append(task)
-        else:
+        elif section == "up_next":
             p.up_next.insert(0, task)
+        else:
+            p.inbox.append(task)
         _save(p)
         tag = f" [{task.project}]" if task.project else ""
         return f"Added{tag} \"{task.text}\" to {section.replace('_', ' ')}"
@@ -238,8 +240,8 @@ def execute_tool(name: str, tool_input: dict) -> str:
         best_score = 0
         best_location = ""
 
-        # Search active, up_next, and project backlogs
-        for section_name, tasks in [("active", p.active), ("up_next", p.up_next)]:
+        # Search active, up_next, inbox, and project backlogs
+        for section_name, tasks in [("active", p.active), ("up_next", p.up_next), ("inbox", p.inbox)]:
             for task in tasks:
                 score = _fuzzy_score(query, task.text.lower())
                 if score > best_score:
@@ -263,6 +265,8 @@ def execute_tool(name: str, tool_input: dict) -> str:
             p.active.remove(best_task)
         elif best_location == "up_next":
             p.up_next.remove(best_task)
+        elif best_location == "inbox":
+            p.inbox.remove(best_task)
         elif best_location.startswith("project:"):
             proj_name = best_location[8:]
             proj = p.get_project(proj_name)
@@ -292,7 +296,7 @@ def _find_task(p, query):
     """Find best fuzzy-matching task across all sections. Returns (task, score)."""
     best_task = None
     best_score = 0
-    for tasks in [p.active, p.up_next]:
+    for tasks in [p.active, p.up_next, p.inbox]:
         for task in tasks:
             score = _fuzzy_score(query, task.text.lower())
             if score > best_score:

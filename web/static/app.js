@@ -1,4 +1,4 @@
-let state = { active: [], up_next: [], projects: [], done: [], notes: [] };
+let state = { active: [], up_next: [], inbox: [], projects: [], done: [], notes: [] };
 
 // Service worker registration
 if ("serviceWorker" in navigator) {
@@ -105,13 +105,16 @@ function render() {
   document.querySelectorAll(".drag-over").forEach(el => el.classList.remove("drag-over"));
   renderTasks("active-list", state.active, "active");
   renderTasks("next-list", state.up_next, "up_next");
+  renderTasks("inbox-list", state.inbox || [], "inbox");
   renderDone();
   renderProjects();
   document.querySelector(".active-header .section-count").textContent = `(${state.active.length})`;
   document.querySelector(".next-header .section-count").textContent = `(${state.up_next.length})`;
+  document.querySelector(".inbox-header .section-count").textContent = `(${(state.inbox || []).length})`;
   document.querySelector(".done-header .section-count").textContent = `(${state.done.length})`;
   syncTaskSectionLevel("active-section", "active-list", "active");
   syncTaskSectionLevel("next-section", "next-list", "up_next");
+  syncTaskSectionLevel("inbox-section", "inbox-list", "inbox");
 
   // Auto-collapse empty sections on mobile
   if (window.matchMedia("(max-width: 600px)").matches) {
@@ -122,6 +125,10 @@ function render() {
     if (state.up_next.length === 0) {
       document.getElementById("next-section").classList.add("collapsed");
       sectionExpandLevels.up_next = 0;
+    }
+    if ((state.inbox || []).length === 0) {
+      document.getElementById("inbox-section").classList.add("collapsed");
+      sectionExpandLevels.inbox = 0;
     }
   }
 }
@@ -642,7 +649,7 @@ function renderTasks(containerId, tasks, section) {
 
 let doneSearchQuery = "";
 let projectsExpandLevel = 1; // 0=section hidden, 1=cards collapsed, 2=cards expanded
-let sectionExpandLevels = { active: 1, up_next: 1 }; // 0=hidden, 1=tasks collapsed, 2=tasks expanded
+let sectionExpandLevels = { active: 1, up_next: 1, inbox: 1 }; // 0=hidden, 1=tasks collapsed, 2=tasks expanded
 
 function renderDone() {
   const el = document.getElementById("done-list");
@@ -1239,6 +1246,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setupTaskSectionCycle("active-header-toggle", "active-section", "active-list", "active");
   setupTaskSectionCycle("next-header-toggle", "next-section", "next-list", "up_next");
+  setupTaskSectionCycle("inbox-header-toggle", "inbox-section", "inbox-list", "inbox");
 
   // Projects header: 3-state cycle (collapsed → cards collapsed → cards expanded → collapsed)
   document.getElementById("projects-header-toggle").addEventListener("click", (e) => {

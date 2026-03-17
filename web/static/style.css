@@ -46,6 +46,7 @@ h1 {
 
 .section-header.active-header { color: #5cb85c; }
 .section-header.next-header { color: #a0b4d0; }
+.section-header.inbox-header { color: #b0a0d0; }
 .section-header.done-header { color: #7a8a9e; }
 .section-header.projects-header { color: #d4a855; }
 

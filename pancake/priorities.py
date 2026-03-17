@@ -78,6 +78,7 @@ class ProjectInfo:
 class Priorities:
     active: list[Task] = field(default_factory=list)
     up_next: list[Task] = field(default_factory=list)
+    inbox: list[Task] = field(default_factory=list)
     projects: list[ProjectInfo] = field(default_factory=list)
     done: list[Task] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -99,7 +100,7 @@ class Priorities:
         return None
 
     def all_tasks(self) -> list[Task]:
-        return self.active + self.up_next
+        return self.active + self.up_next + self.inbox
 
     def project_names(self) -> list[str]:
         return [p.name for p in self.projects]
@@ -203,6 +204,11 @@ def parse(content: str) -> Priorities:
             current_project = None
             i += 1
             continue
+        elif stripped == "## Inbox":
+            section = "inbox"
+            current_project = None
+            i += 1
+            continue
         elif stripped == "## Projects":
             section = "projects"
             current_project = None
@@ -232,7 +238,7 @@ def parse(content: str) -> Priorities:
         if line.startswith("  - link: ") or line.startswith("  - note: "):
             # Find the last task added in the current section
             last_task = None
-            if section in ("active", "up_next"):
+            if section in ("active", "up_next", "inbox"):
                 tasks = getattr(p, section)
                 if tasks:
                     last_task = tasks[-1]
@@ -250,7 +256,7 @@ def parse(content: str) -> Priorities:
             continue
 
         # Parse tasks in Active / Up Next
-        if section in ("active", "up_next"):
+        if section in ("active", "up_next", "inbox"):
             task = _parse_task(stripped)
             if task:
                 getattr(p, section).append(task)
@@ -312,6 +318,15 @@ def render(p: Priorities) -> str:
             lines.extend(task.to_lines())
     else:
         lines.append("_Backlog empty._")
+    lines.append("")
+
+    # Inbox
+    lines.append("## Inbox")
+    if p.inbox:
+        for task in p.inbox:
+            lines.extend(task.to_lines())
+    else:
+        lines.append("_No unsorted tasks._")
     lines.append("")
 
     # Projects
