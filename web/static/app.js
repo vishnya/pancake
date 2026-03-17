@@ -1516,12 +1516,12 @@ let _profileData = null;
 
 // Profile theme colors -- subtle accent per profile
 const PROFILE_COLORS = [
-  { accent: "#4a8a4a", bg: "#1a2e1a" },  // green
   { accent: "#9a8045", bg: "#2e2a1a" },  // gold
   { accent: "#7088a0", bg: "#1a1a2e" },  // blue
   { accent: "#a07878", bg: "#2e1a1a" },  // rose
   { accent: "#8878a0", bg: "#2a1a2e" },  // lavender
-  { accent: "#689080", bg: "#1a2e2a" },  // mint
+  { accent: "#689080", bg: "#1a2e2a" },  // teal
+  { accent: "#a08860", bg: "#2e2a1a" },  // amber
 ];
 
 function applyProfileTheme(profileIndex) {
@@ -1564,8 +1564,11 @@ async function initProfileSwitcher() {
     menu.innerHTML = "";
     data.profiles.forEach(p => {
       const item = document.createElement("div");
+      const pIdx = data.profiles.indexOf(p);
+      const pColor = PROFILE_COLORS[pIdx % PROFILE_COLORS.length];
       item.className = "profile-menu-item" + (p.profile_id === data.active_profile ? " active" : "");
       item.textContent = p.display_name;
+      item.style.color = pColor.accent;
       if (p.profile_id !== data.active_profile) {
         item.addEventListener("click", async () => {
           await fetch("api/profile/switch", {
