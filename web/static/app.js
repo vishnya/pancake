@@ -458,7 +458,9 @@ function buildTaskEl(task, section, index, opts = {}) {
   if (!section.startsWith("project:")) {
     proj = document.createElement("span");
     proj.className = "task-project";
-    proj.textContent = task.project || "no project";
+    const isMobile = window.innerWidth <= 600;
+    proj.textContent = isMobile ? (task.project || "?").substring(0, 2).toUpperCase() : (task.project || "no project");
+    proj.title = task.project || "";
     const color = getProjectColor(task.project);
     if (color) {
       proj.style.background = color.bg;
@@ -579,7 +581,7 @@ function buildTaskEl(task, section, index, opts = {}) {
   pri.className = "task-priority-dot";
   if (task.priority === 2) { pri.classList.add("p2"); pri.textContent = "!!"; }
   else if (task.priority === 1) { pri.classList.add("p1"); pri.textContent = "!"; }
-  else { pri.textContent = "·"; }
+  else { pri.textContent = ""; }
   pri.title = task.priority === 0 ? "Set priority" : task.priority === 1 ? "Important" : "Critical";
   pri.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -587,11 +589,11 @@ function buildTaskEl(task, section, index, opts = {}) {
     api("task/priority", { section, index, priority: newPri });
   });
 
+  // Project pill first (fixed width for alignment), then checkbox, priority, text
+  if (proj) div.appendChild(proj);
   div.appendChild(cb);
   div.appendChild(pri);
   div.appendChild(text);
-  // Project pill and assignee after text (keeps checkbox column-aligned across rows)
-  if (proj) div.appendChild(proj);
   if (assigneeContainer) div.appendChild(assigneeContainer);
 
   // Right-side controls in a fixed-width container for alignment
