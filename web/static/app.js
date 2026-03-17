@@ -1342,7 +1342,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   api("priorities");
+  initProfileSwitcher();
 });
+
+async function initProfileSwitcher() {
+  try {
+    const res = await fetch("api/profiles");
+    const data = await res.json();
+    if (!data.profiles || data.profiles.length <= 1) return;
+    const switcher = document.getElementById("profile-switcher");
+    if (!switcher) return;
+    switcher.style.display = "flex";
+    const label = switcher.querySelector(".profile-label");
+    const menu = switcher.querySelector(".profile-menu");
+    const active = data.profiles.find(p => p.profile_id === data.active_profile);
+    label.textContent = active ? active.display_name : (data.profiles[0]?.display_name || "");
+    label.addEventListener("click", () => menu.classList.toggle("open"));
+    menu.innerHTML = "";
+    data.profiles.forEach(p => {
+      const item = document.createElement("div");
+      item.className = "profile-menu-item" + (p.profile_id === data.active_profile ? " active" : "");
+      item.textContent = p.display_name;
+      item.addEventListener("click", async () => {
+        await fetch("api/profile/switch", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({profile_id: p.profile_id}),
+        });
+        location.reload();
+      });
+      menu.appendChild(item);
+    });
+    document.addEventListener("click", (e) => {
+      if (!switcher.contains(e.target)) menu.classList.remove("open");
+    });
+  } catch (e) {}
+}
 
 // Chat panel
 let chatSessionId = sessionStorage.getItem("pancake_chat_session") || null;

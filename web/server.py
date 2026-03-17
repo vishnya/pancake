@@ -19,9 +19,15 @@ from socketserver import ThreadingMixIn
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date
+from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date, set_active_profile
 from pancake.context import build_context
 from pancake.chat import is_available as chat_is_available, stream_response, stream_response_with_tools
+from pancake.accounts import (
+    authenticate, get_account, create_account, create_profile,
+    get_memberships_for_account, get_memberships_for_profile,
+    has_access, get_role, add_membership, remove_membership,
+    ensure_initialized, data_dir_for_profile, load_accounts,
+)
 import pancake.tools
 from pancake.tools import TOOLS, execute_tool
 
@@ -31,18 +37,24 @@ PANCAKE_PASSWORD = os.environ.get("PANCAKE_PASSWORD")
 WEB_DIR = Path(__file__).parent
 DATA_DIR = Path(__file__).parent.parent / "data"
 MAX_UNDO = 100
-UNDO_FILE = DATA_DIR / "undo_stack.json"
-REDO_FILE = DATA_DIR / "redo_stack.json"
 
-# Auth: persistent session tokens (token -> expiry timestamp)
+# Auth: persistent session tokens (token -> {account_id, expiry})
 SESSION_MAX_AGE = 30 * 24 * 3600  # 30 days
 SESSION_FILE = DATA_DIR / "sessions.json"
 
 
-def _load_sessions() -> dict[str, float]:
+def _load_sessions() -> dict[str, dict]:
     if SESSION_FILE.exists():
         try:
-            return json.loads(SESSION_FILE.read_text())
+            data = json.loads(SESSION_FILE.read_text())
+            # Migrate old format (token -> expiry float) to new (token -> {account, expiry})
+            migrated = {}
+            for k, v in data.items():
+                if isinstance(v, (int, float)):
+                    migrated[k] = {"account": "rachel", "expiry": v}
+                else:
+                    migrated[k] = v
+            return migrated
         except (OSError, json.JSONDecodeError):
             pass
     return {}
@@ -53,7 +65,7 @@ def _save_sessions():
     SESSION_FILE.write_text(json.dumps(VALID_SESSIONS))
 
 
-VALID_SESSIONS: dict[str, float] = _load_sessions()
+VALID_SESSIONS: dict[str, dict] = _load_sessions()
 
 
 def _load_stack(path):
@@ -66,19 +78,74 @@ def _load_stack(path):
 
 
 def _save_stack(path, stack):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(stack))
 
 
-UNDO_STACK = _load_stack(UNDO_FILE)
-REDO_STACK = _load_stack(REDO_FILE)
+# Profile-scoped undo/redo stacks (lazy-loaded)
+_undo_stacks: dict[str, list] = {}
+_redo_stacks: dict[str, list] = {}
+
+# Legacy global stacks for backward compat (used when no profile is active)
+UNDO_STACK = _load_stack(DATA_DIR / "undo_stack.json")
+REDO_STACK = _load_stack(DATA_DIR / "redo_stack.json")
+
+
+def _get_undo_stack() -> list:
+    from pancake.priorities import get_active_profile
+    slug = get_active_profile()
+    if not slug:
+        return UNDO_STACK
+    if slug not in _undo_stacks:
+        _undo_stacks[slug] = _load_stack(data_dir_for_profile(slug) / "undo_stack.json")
+    return _undo_stacks[slug]
+
+
+def _get_redo_stack() -> list:
+    from pancake.priorities import get_active_profile
+    slug = get_active_profile()
+    if not slug:
+        return REDO_STACK
+    if slug not in _redo_stacks:
+        _redo_stacks[slug] = _load_stack(data_dir_for_profile(slug) / "redo_stack.json")
+    return _redo_stacks[slug]
+
+
+def _save_undo_stack():
+    from pancake.priorities import get_active_profile
+    slug = get_active_profile()
+    if slug:
+        _save_stack(data_dir_for_profile(slug) / "undo_stack.json", _get_undo_stack())
+    else:
+        _save_stack(DATA_DIR / "undo_stack.json", UNDO_STACK)
+
+
+def _save_redo_stack():
+    from pancake.priorities import get_active_profile
+    slug = get_active_profile()
+    if slug:
+        _save_stack(data_dir_for_profile(slug) / "redo_stack.json", _get_redo_stack())
+    else:
+        _save_stack(DATA_DIR / "redo_stack.json", REDO_STACK)
+
+
 CHAT_SESSIONS: dict[str, list] = {}  # session_id -> messages
-CHAT_DIR = DATA_DIR / "chat_sessions"
+
+
+def _chat_dir() -> Path:
+    from pancake.priorities import get_active_profile
+    slug = get_active_profile()
+    if slug:
+        d = data_dir_for_profile(slug) / "chat_sessions"
+    else:
+        d = DATA_DIR / "chat_sessions"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def _load_chat_session(session_id: str) -> list:
     """Load chat session from disk."""
-    path = CHAT_DIR / f"{session_id}.json"
+    path = _chat_dir() / f"{session_id}.json"
     if path.exists():
         try:
             return json.loads(path.read_text())
@@ -89,14 +156,12 @@ def _load_chat_session(session_id: str) -> list:
 
 def _save_chat_session(session_id: str, messages: list):
     """Save chat session to disk."""
-    CHAT_DIR.mkdir(parents=True, exist_ok=True)
-    # Only save user/assistant text messages for display purposes
+    chat_dir = _chat_dir()
     display_msgs = []
     for msg in messages:
         if isinstance(msg.get("content"), str):
             display_msgs.append(msg)
         elif msg.get("role") == "assistant" and isinstance(msg.get("content"), list):
-            # Extract text from content blocks (SDK objects or dicts)
             text_parts = []
             for block in msg["content"]:
                 block_type = getattr(block, "type", None) or (block.get("type") if isinstance(block, dict) else None)
@@ -105,7 +170,7 @@ def _save_chat_session(session_id: str, messages: list):
                     text_parts.append(block_text)
             if text_parts:
                 display_msgs.append({"role": "assistant", "content": "".join(text_parts)})
-    (CHAT_DIR / f"{session_id}.json").write_text(json.dumps(display_msgs))
+    (chat_dir / f"{session_id}.json").write_text(json.dumps(display_msgs))
 
 
 # Lazy-loaded Whisper model for transcription
@@ -126,13 +191,15 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 def _snapshot():
     """Take a snapshot of current state for undo."""
     path = vault_path()
+    undo = _get_undo_stack()
+    redo = _get_redo_stack()
     if path.exists():
-        UNDO_STACK.append(path.read_text())
-        if len(UNDO_STACK) > MAX_UNDO:
-            UNDO_STACK.pop(0)
-        _save_stack(UNDO_FILE, UNDO_STACK)
-    REDO_STACK.clear()
-    _save_stack(REDO_FILE, REDO_STACK)
+        undo.append(path.read_text())
+        if len(undo) > MAX_UNDO:
+            undo.pop(0)
+        _save_undo_stack()
+    redo.clear()
+    _save_redo_stack()
 
 
 def _snapshot_and_save(p):
@@ -168,28 +235,61 @@ _LOGIN_TEMPLATE = (
     "</style></head><body>"
     '<form method="POST" action="/login"><h1>Pancake</h1>'
     "%s"
-    '<input type="password" name="password" placeholder="Password" autofocus>'
+    '<input type="text" name="username" placeholder="Username" autofocus>'
+    '<input type="password" name="password" placeholder="Password">'
     '<button type="submit">Log in</button>'
     "</form></body></html>"
 )
 
 
 class PancakeHandler(SimpleHTTPRequestHandler):
-    def _check_auth(self) -> bool:
-        """Return True if authenticated or auth is disabled."""
-        if not PANCAKE_PASSWORD:
-            return True
+    def _check_auth(self) -> dict | None:
+        """Return account dict if authenticated, None otherwise."""
+        # If no accounts configured and legacy password is set, use legacy mode
+        if not load_accounts() and PANCAKE_PASSWORD:
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+            token_morsel = cookie.get("pancake_session")
+            if token_morsel:
+                session = VALID_SESSIONS.get(token_morsel.value)
+                if session and time.time() < session.get("expiry", 0):
+                    return {"id": session.get("account", "rachel"), "display_name": "Rachel"}
+                VALID_SESSIONS.pop(token_morsel.value, None)
+                _save_sessions()
+            return None
+        # Multi-account mode
+        if not load_accounts():
+            # No accounts and no password = no auth required
+            return {"id": "default", "display_name": "Default"}
         cookie = SimpleCookie(self.headers.get("Cookie", ""))
         token_morsel = cookie.get("pancake_session")
         if not token_morsel:
-            return False
-        token = token_morsel.value
-        expiry = VALID_SESSIONS.get(token)
-        if expiry and time.time() < expiry:
-            return True
-        VALID_SESSIONS.pop(token, None)
-        _save_sessions()
-        return False
+            return None
+        session = VALID_SESSIONS.get(token_morsel.value)
+        if not session or time.time() >= session.get("expiry", 0):
+            VALID_SESSIONS.pop(token_morsel.value, None)
+            _save_sessions()
+            return None
+        account = get_account(session.get("account", ""))
+        return account
+
+    def _get_active_profile(self, account: dict) -> str | None:
+        """Resolve the active profile for this request. Sets thread-local context."""
+        cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        profile_morsel = cookie.get("pancake_profile")
+        memberships = get_memberships_for_account(account["id"])
+        if not memberships:
+            set_active_profile(None)
+            return None
+        # Use cookie value if valid
+        if profile_morsel:
+            slug = profile_morsel.value
+            if has_access(account["id"], slug):
+                set_active_profile(slug)
+                return slug
+        # Default to first profile
+        slug = memberships[0]["profile_id"]
+        set_active_profile(slug)
+        return slug
 
     def _serve_login(self, error=""):
         error_html = f'<div class="error">{error}</div>' if error else ""
@@ -200,12 +300,15 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html)
 
-    def _require_auth(self) -> bool:
-        """Check auth; if not authenticated, serve login page and return False."""
-        if self._check_auth():
-            return True
-        self._serve_login()
-        return False
+    def _require_auth(self) -> dict | None:
+        """Check auth; if not authenticated, serve login page and return None.
+        Otherwise returns account dict and sets up profile context."""
+        account = self._check_auth()
+        if not account:
+            self._serve_login()
+            return None
+        self._get_active_profile(account)
+        return account
 
     def do_GET(self):
         # Strip query string for routing
@@ -233,7 +336,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._serve_file("static/style.css", "text/css")
             return
 
-        if not self._require_auth():
+        account = self._require_auth()
+        if not account:
             return
 
         if path_no_qs == "/" or path_no_qs == "/index.html":
@@ -256,6 +360,21 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 except OSError:
                     pass
             self._json_response({"text": text})
+        elif self.path == "/api/profiles":
+            from pancake.priorities import get_active_profile
+            memberships = get_memberships_for_account(account["id"])
+            self._json_response({
+                "account": {"id": account["id"], "display_name": account.get("display_name", account["id"])},
+                "profiles": memberships,
+                "active_profile": get_active_profile(),
+            })
+        elif self.path == "/api/profile/members":
+            from pancake.priorities import get_active_profile
+            slug = get_active_profile()
+            if slug and get_role(account["id"], slug) == "admin":
+                self._json_response({"members": get_memberships_for_profile(slug)})
+            else:
+                self._json_response({"members": []})
         else:
             self.send_error(404)
 
@@ -265,24 +384,38 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(length).decode()
             params = parse_qs(raw)
+            username = params.get("username", [""])[0].strip().lower()
             password = params.get("password", [""])[0]
-            if PANCAKE_PASSWORD and hmac.compare_digest(password, PANCAKE_PASSWORD):
+
+            # Try multi-account auth first
+            account = authenticate(username, password) if username else None
+            # Fallback to legacy single-password mode
+            if not account and PANCAKE_PASSWORD and hmac.compare_digest(password, PANCAKE_PASSWORD):
+                account = {"id": username or "rachel", "display_name": username.title() or "Rachel"}
+
+            if account:
                 token = secrets.token_urlsafe(32)
-                VALID_SESSIONS[token] = time.time() + SESSION_MAX_AGE
+                VALID_SESSIONS[token] = {"account": account["id"], "expiry": time.time() + SESSION_MAX_AGE}
                 _save_sessions()
                 self.send_response(303)
                 secure_flag = "; Secure" if HOST != "127.0.0.1" else ""
                 self.send_header("Set-Cookie",
                     f"pancake_session={token}; HttpOnly; SameSite=Lax; "
                     f"Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
+                # Set default profile cookie
+                memberships = get_memberships_for_account(account["id"])
+                if memberships:
+                    self.send_header("Set-Cookie",
+                        f"pancake_profile={memberships[0]['profile_id']}; SameSite=Lax; "
+                        f"Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
                 self.send_header("Location", "/")
                 self.end_headers()
             else:
-                self._serve_login(error="Wrong password.")
+                self._serve_login(error="Wrong username or password.")
             return
 
-        if not self._check_auth():
-            self._serve_login()
+        account = self._require_auth()
+        if not account:
             return
 
         # Transcribe handles raw audio, not JSON
@@ -348,6 +481,52 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._handle_chat(body)
         elif self.path == "/api/user-context":
             self._handle_save_user_context(body)
+        elif self.path == "/api/profile/switch":
+            slug = body.get("profile_id", "")
+            if has_access(account["id"], slug):
+                secure_flag = "; Secure" if HOST != "127.0.0.1" else ""
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Set-Cookie",
+                    f"pancake_profile={slug}; SameSite=Lax; Max-Age={SESSION_MAX_AGE}; Path=/{secure_flag}")
+                self.end_headers()
+                set_active_profile(slug)
+                self.wfile.write(json.dumps(self._get_priorities()).encode())
+            else:
+                self._json_response({"error": "no access"}, 403)
+        elif self.path == "/api/profile/create":
+            slug = body.get("id", "").strip().lower().replace(" ", "-")
+            display_name = body.get("display_name", slug)
+            if not slug:
+                self._json_response({"error": "id required"}, 400)
+            else:
+                try:
+                    create_profile(slug, display_name, account["id"])
+                    self._json_response({"ok": True, "profile_id": slug})
+                except ValueError as e:
+                    self._json_response({"error": str(e)}, 400)
+        elif self.path == "/api/profile/invite":
+            from pancake.priorities import get_active_profile
+            slug = get_active_profile()
+            if not slug or get_role(account["id"], slug) != "admin":
+                self._json_response({"error": "admin required"}, 403)
+            else:
+                target = body.get("account_id", "")
+                role = body.get("role", "member")
+                if not get_account(target):
+                    self._json_response({"error": f"account '{target}' not found"}, 404)
+                else:
+                    add_membership(target, slug, role)
+                    self._json_response({"ok": True})
+        elif self.path == "/api/profile/remove_member":
+            from pancake.priorities import get_active_profile
+            slug = get_active_profile()
+            if not slug or get_role(account["id"], slug) != "admin":
+                self._json_response({"error": "admin required"}, 403)
+            else:
+                target = body.get("account_id", "")
+                remove_membership(target, slug)
+                self._json_response({"ok": True})
         else:
             self.send_error(404)
 
@@ -703,15 +882,17 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self._json_response(self._get_priorities())
 
     def _handle_undo(self, body):
-        if not UNDO_STACK:
+        undo = _get_undo_stack()
+        redo = _get_redo_stack()
+        if not undo:
             self._json_response(self._get_priorities())
             return
         path = vault_path()
         if path.exists():
-            REDO_STACK.append(path.read_text())
-            _save_stack(REDO_FILE, REDO_STACK)
-        content = UNDO_STACK.pop()
-        _save_stack(UNDO_FILE, UNDO_STACK)
+            redo.append(path.read_text())
+            _save_redo_stack()
+        content = undo.pop()
+        _save_undo_stack()
         import fcntl
         with open(path, "w") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -720,15 +901,17 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self._json_response(self._get_priorities())
 
     def _handle_redo(self, body):
-        if not REDO_STACK:
+        undo = _get_undo_stack()
+        redo = _get_redo_stack()
+        if not redo:
             self._json_response(self._get_priorities())
             return
         path = vault_path()
         if path.exists():
-            UNDO_STACK.append(path.read_text())
-            _save_stack(UNDO_FILE, UNDO_STACK)
-        content = REDO_STACK.pop()
-        _save_stack(REDO_FILE, REDO_STACK)
+            undo.append(path.read_text())
+            _save_undo_stack()
+        content = redo.pop()
+        _save_redo_stack()
         import fcntl
         with open(path, "w") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -820,8 +1003,10 @@ class PancakeHandler(SimpleHTTPRequestHandler):
 
 
 def main():
+    ensure_initialized()
     server = ThreadingHTTPServer((HOST, PORT), PancakeHandler)
-    auth_note = " (password protected)" if PANCAKE_PASSWORD else ""
+    accounts = load_accounts()
+    auth_note = f" ({len(accounts)} accounts)" if accounts else (" (password protected)" if PANCAKE_PASSWORD else "")
     print(f"Pancake UI running at http://{HOST}:{PORT}{auth_note}")
     try:
         server.serve_forever()

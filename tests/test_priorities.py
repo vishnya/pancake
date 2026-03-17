@@ -5,6 +5,8 @@ import tempfile
 
 _tmpdir = tempfile.mkdtemp()
 os.environ["PANCAKE_VAULT"] = os.path.join(_tmpdir, "PRIORITIES.md")
+os.environ["PANCAKE_CONFIG_DIR"] = os.path.join(_tmpdir, "config")
+os.environ["PANCAKE_DATA_ROOT"] = _tmpdir
 
 from pancake.priorities import parse, render, load, save, Priorities, Task, ProjectInfo, next_due_date
 

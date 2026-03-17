@@ -5,6 +5,18 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-17 | Server
+- Multi-account/multi-profile system: accounts (username+password login), profiles (isolated PRIORITIES.md per profile), memberships (admin/member roles)
+- Thread-local vault_path() for profile-scoped data isolation
+- Profile switcher UI in header, profile API endpoints (list/switch/create/invite/members)
+- Profile-scoped undo/redo stacks and chat sessions
+- Login page with username field, backward-compatible with legacy single-password mode
+- Added Inbox section (below Up Next) for unsorted tasks, Think routes projectless tasks there
+- Mobile: delete button moved to expanded view, projects/history collapsed by default
+- Fixed deadline pill alignment (fixed-width controls container)
+- Migration script: scripts/migrate_to_profiles.py
+- 192 tests (34 accounts + 57 priorities + 101 server)
+
 ### 2026-03-16 | Server
 - Added recurring tasks: `@every(daily|weekly|2d|weekdays|monthly)` in PRIORITIES.md
 - Recurring tasks reset in-place when checked off (new deadline, stays in section)

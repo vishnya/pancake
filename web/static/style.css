@@ -28,6 +28,65 @@ h1 {
   flex-shrink: 0;
 }
 
+.profile-switcher {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.profile-label {
+  font-size: 12px;
+  color: #b0a0d0;
+  background: #2a2a40;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.profile-label:hover {
+  border-color: #5a5a8c;
+}
+
+.profile-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #16213e;
+  border: 1px solid #2a3a5c;
+  border-radius: 6px;
+  min-width: 140px;
+  z-index: 60;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.profile-menu.open {
+  display: block;
+}
+
+.profile-menu-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #a0b4d0;
+  cursor: pointer;
+}
+
+.profile-menu-item:hover {
+  background: #1e2d4a;
+}
+
+.profile-menu-item.active {
+  color: #d4a855;
+}
+
+.profile-menu-item:first-child { border-radius: 6px 6px 0 0; }
+.profile-menu-item:last-child { border-radius: 0 0 6px 6px; }
+
 /* Sections */
 .section {
   margin-bottom: 24px;

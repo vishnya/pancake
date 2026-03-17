@@ -14,19 +14,42 @@ Hand-editable in Obsidian (Alt+Up/Down to reorder lines).
 import fcntl
 import os
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
 DEFAULT_VAULT_PATH = os.path.expanduser("~/Obsidian/main/PRIORITIES.md")
 
+# Thread-local profile context for multi-profile support
+_ctx = threading.local()
+
+
+def set_active_profile(profile_slug: str | None) -> None:
+    """Set the active profile for the current thread/request."""
+    _ctx.profile_slug = profile_slug
+
+
+def get_active_profile() -> str | None:
+    """Get the active profile slug for the current thread."""
+    return getattr(_ctx, "profile_slug", None)
+
 
 def vault_path() -> Path:
+    """Return the PRIORITIES.md path for the active profile, or fallback to env var."""
+    slug = get_active_profile()
+    if slug:
+        from pancake.accounts import vault_path_for_profile
+        return vault_path_for_profile(slug)
     return Path(os.environ.get("PANCAKE_VAULT", DEFAULT_VAULT_PATH))
 
 
 def user_context_path() -> Path:
-    """User context file lives in the Obsidian vault alongside PRIORITIES.md."""
+    """User context file lives alongside PRIORITIES.md."""
+    slug = get_active_profile()
+    if slug:
+        from pancake.accounts import user_context_path_for_profile
+        return user_context_path_for_profile(slug)
     return vault_path().parent / "About Me.md"
 
 
@@ -373,6 +396,10 @@ def save(p: Priorities) -> None:
 
 def projects_dir() -> Path:
     """Directory for individual project .md files in the Obsidian vault."""
+    slug = get_active_profile()
+    if slug:
+        from pancake.accounts import projects_dir_for_profile
+        return projects_dir_for_profile(slug)
     return vault_path().parent / "Projects"
 
 

@@ -11,6 +11,8 @@ import pytest
 
 _tmpdir = tempfile.mkdtemp()
 os.environ["PANCAKE_VAULT"] = os.path.join(_tmpdir, "PRIORITIES.md")
+os.environ["PANCAKE_CONFIG_DIR"] = os.path.join(_tmpdir, "config")
+os.environ["PANCAKE_DATA_ROOT"] = _tmpdir
 
 from pancake.priorities import Priorities, Task, ProjectInfo, save, load
 from web.server import PancakeHandler, UNDO_STACK
@@ -938,7 +940,7 @@ def test_auth_wrong_password(auth_server):
     req = Request(f"http://127.0.0.1:{auth_server}/login", data=data, method="POST")
     resp = urlopen(req)
     html = resp.read().decode()
-    assert "Wrong password" in html
+    assert "Wrong" in html
 
 
 def test_auth_correct_password_sets_cookie(auth_server):
