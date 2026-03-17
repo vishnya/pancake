@@ -9,8 +9,10 @@ if ("serviceWorker" in navigator) {
 (function initShakeUndo() {
   if (!window.DeviceMotionEvent) return;
   let lastShake = 0;
+  let shakeCount = 0;
   let lastX = null, lastY = null, lastZ = null;
-  const threshold = 25;
+  let shakeResetTimer = null;
+  const threshold = 20;
 
   function onMotion(e) {
     const a = e.accelerationIncludingGravity;
@@ -19,25 +21,43 @@ if ("serviceWorker" in navigator) {
       const delta = Math.abs(a.x - lastX) + Math.abs(a.y - lastY) + Math.abs(a.z - lastZ);
       if (delta > threshold) {
         const now = Date.now();
-        if (now - lastShake > 1000) {
+        if (now - lastShake > 200) {
+          shakeCount++;
           lastShake = now;
-          api("undo", {});
+          clearTimeout(shakeResetTimer);
+          shakeResetTimer = setTimeout(() => { shakeCount = 0; }, 800);
+          if (shakeCount >= 3) {
+            shakeCount = 0;
+            api("undo", {});
+          }
         }
       }
     }
     lastX = a.x; lastY = a.y; lastZ = a.z;
   }
 
-  if (typeof DeviceMotionEvent.requestPermission === "function") {
-    // iOS 13+ requires permission
-    document.addEventListener("touchstart", function permit() {
+  let motionPermitted = false;
+  function enableMotion() {
+    if (motionPermitted) return;
+    if (typeof DeviceMotionEvent.requestPermission === "function") {
       DeviceMotionEvent.requestPermission().then((p) => {
-        if (p === "granted") window.addEventListener("devicemotion", onMotion);
+        if (p === "granted") {
+          motionPermitted = true;
+          window.addEventListener("devicemotion", onMotion);
+        }
       }).catch(() => {});
-      document.removeEventListener("touchstart", permit);
-    }, { once: true });
-  } else {
-    window.addEventListener("devicemotion", onMotion);
+    } else {
+      motionPermitted = true;
+      window.addEventListener("devicemotion", onMotion);
+    }
+  }
+
+  // Try on first interaction (iOS requires user gesture)
+  document.addEventListener("touchstart", enableMotion, { once: true });
+  document.addEventListener("click", enableMotion, { once: true });
+  // Also try immediately for non-iOS
+  if (typeof DeviceMotionEvent.requestPermission !== "function") {
+    enableMotion();
   }
 })();
 
