@@ -672,3 +672,65 @@ def test_auto_sort_due_in_active_within_week_demoted():
     assert changed
     assert len(p.active) == 0
     assert len(p.up_next) == 1
+
+
+# --- manual override tests ---
+
+
+def test_auto_sort_skips_manual_task():
+    """Recurring task with manual=True should not be auto-sorted."""
+    p = Priorities(
+        up_next=[Task(text="daily standup", recurrence="daily", deadline=_today(), manual=True)]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.up_next) == 1
+    assert len(p.active) == 0
+
+
+def test_auto_sort_skips_manual_in_active():
+    """Manual task in active with future deadline should stay in active."""
+    p = Priorities(
+        active=[Task(text="review", recurrence="weekly", deadline=_days_from_now(3), manual=True)]
+    )
+    changed = auto_sort_recurring(p)
+    assert not changed
+    assert len(p.active) == 1
+    assert len(p.up_next) == 0
+
+
+def test_parse_manual_tag():
+    """@manual tag should be parsed into task.manual field."""
+    content = "## Active\n- [ ] daily standup @due(2026-03-17) @every(daily) @manual\n"
+    p = parse(content)
+    assert len(p.active) == 1
+    assert p.active[0].manual is True
+    assert "@manual" not in p.active[0].text
+
+
+def test_render_manual_tag():
+    """Tasks with manual=True should render @manual tag."""
+    p = Priorities(
+        active=[Task(text="standup", recurrence="daily", deadline="2026-03-17", manual=True)]
+    )
+    text = render(p)
+    assert "@manual" in text
+
+
+def test_render_no_manual_tag_when_false():
+    """Tasks with manual=False should not render @manual tag."""
+    p = Priorities(
+        active=[Task(text="standup", recurrence="daily", deadline="2026-03-17", manual=False)]
+    )
+    text = render(p)
+    assert "@manual" not in text
+
+
+def test_manual_cleared_on_completion():
+    """Completing a recurring task should clear the manual flag."""
+    task = Task(text="daily", recurrence="daily", deadline=_today(), manual=True)
+    # Simulate what _handle_done does
+    task.deadline = next_due_date(task.deadline, task.recurrence)
+    task.manual = False
+    assert task.manual is False
+    assert task.deadline == _days_from_now(1)

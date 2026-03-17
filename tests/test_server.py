@@ -572,7 +572,7 @@ def test_task_dict_roundtrip(server):
     save(p)
     data = _api(server, "priorities")
     t = data["active"][0]
-    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0, "recurrence": "", "assignee": ""}
+    assert t == {"text": "t", "project": "P", "done": False, "notes": ["n1", "n2"], "deadline": "2026-01-01", "priority": 0, "recurrence": "", "assignee": "", "manual": False}
 
 
 # =============================================================================

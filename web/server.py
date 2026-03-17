@@ -664,14 +664,16 @@ class PancakeHandler(SimpleHTTPRequestHandler):
     def _task_dict(t):
         return {"text": t.text, "project": t.project, "done": t.done,
                 "notes": t.notes, "deadline": t.deadline, "priority": t.priority,
-                "recurrence": t.recurrence, "assignee": t.assignee}
+                "recurrence": t.recurrence, "assignee": t.assignee,
+                "manual": t.manual}
 
     @staticmethod
     def _task_from_dict(t):
         return Task(text=t["text"], project=t.get("project", ""), done=t.get("done", False),
                      notes=t.get("notes", []),
                      deadline=t.get("deadline", ""), priority=t.get("priority", 0),
-                     recurrence=t.get("recurrence", ""), assignee=t.get("assignee", ""))
+                     recurrence=t.get("recurrence", ""), assignee=t.get("assignee", ""),
+                     manual=t.get("manual", False))
 
     def _get_priorities(self) -> dict:
         p = load()
@@ -708,6 +710,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.active[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                task.manual = False  # clear override, let auto_sort manage next cycle
                 # Completed for today — move to Up Next
                 p.active.pop(idx)
                 p.up_next.insert(0, task)
@@ -719,6 +722,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.up_next[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                task.manual = False  # clear override, let auto_sort manage next cycle
                 # Stays in up_next with new deadline
             else:
                 task = p.up_next.pop(idx)
@@ -728,6 +732,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             task = p.inbox[idx]
             if task.recurrence:
                 task.deadline = next_due_date(task.deadline, task.recurrence)
+                task.manual = False  # clear override, let auto_sort manage next cycle
                 # Move to up_next from inbox
                 p.inbox.pop(idx)
                 p.up_next.insert(0, task)
@@ -767,6 +772,11 @@ class PancakeHandler(SimpleHTTPRequestHandler):
     def _handle_reorder(self, body):
         """Handle drag-and-drop reorder. Body: {active: [...], up_next: [...], projects: {name: [tasks]}}"""
         p = load()
+        # Build set of task texts per section BEFORE reorder, to detect section changes
+        old_sections: dict[str, set[str]] = {}
+        for sec in ("active", "up_next", "inbox"):
+            old_sections[sec] = {t.text for t in getattr(p, sec)}
+
         tf = self._task_from_dict
         if "active" in body:
             p.active = [tf(t) for t in body["active"]]
@@ -779,6 +789,13 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 proj = p.get_project(proj_name)
                 if proj:
                     proj.tasks = [tf(t) for t in tasks]
+
+        # Mark recurring tasks as manually placed if they changed sections
+        for sec in ("active", "up_next", "inbox"):
+            for task in getattr(p, sec):
+                if task.recurrence and task.text not in old_sections.get(sec, set()):
+                    task.manual = True
+
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 

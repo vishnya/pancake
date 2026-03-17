@@ -63,6 +63,7 @@ class Task:
     priority: int = 0  # 0=normal, 1=important (!), 2=critical (!!)
     recurrence: str = ""  # e.g. "daily", "2d", "weekly", "weekdays", "monthly"
     assignee: str = ""  # username of assigned person
+    manual: bool = False  # user manually placed this task; auto_sort should skip it
 
     def to_lines(self) -> list[str]:
         check = "x" if self.done else " "
@@ -71,7 +72,8 @@ class Task:
         rec = f" @every({self.recurrence})" if self.recurrence else ""
         pri = f" @p({self.priority})" if self.priority else ""
         asg = f" @assigned({self.assignee})" if self.assignee else ""
-        lines = [f"- [{check}] {tag}{self.text}{dl}{rec}{pri}{asg}"]
+        man = " @manual" if self.manual else ""
+        lines = [f"- [{check}] {tag}{self.text}{dl}{rec}{pri}{asg}{man}"]
         for note in self.notes:
             lines.append(f"  - note: {note}")
         return lines
@@ -157,6 +159,11 @@ def _parse_task(line: str) -> Task | None:
     if asg_match:
         assignee = asg_match.group(1)
         text = text[:asg_match.start()] + text[asg_match.end():]
+    manual = False
+    manual_match = re.search(r"\s*@manual\b", text)
+    if manual_match:
+        manual = True
+        text = text[:manual_match.start()] + text[manual_match.end():]
     return Task(
         text=text.strip(),
         project=m.group(2) or "",
@@ -165,6 +172,7 @@ def _parse_task(line: str) -> Task | None:
         priority=priority,
         recurrence=recurrence,
         assignee=assignee,
+        manual=manual,
     )
 
 
@@ -453,6 +461,8 @@ def auto_sort_recurring(p: Priorities) -> bool:
         for i, task in enumerate(tasks):
             if not task.recurrence or not task.deadline:
                 continue
+            if task.manual:
+                continue  # user manually placed this task, respect their choice
             try:
                 due = datetime.strptime(task.deadline, "%Y-%m-%d").date()
             except ValueError:
