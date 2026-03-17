@@ -1,4 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Light lavender background -->
+  <rect width="32" height="32" rx="6" fill="#e8d5f5"/>
   <!-- Bottom pancake -->
   <ellipse cx="16" cy="22" rx="11" ry="3.5" fill="#d4a03c"/>
   <rect x="5" y="19" width="22" height="3" fill="#d4a03c"/>
