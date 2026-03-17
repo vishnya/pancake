@@ -62,6 +62,7 @@ class Task:
     deadline: str = ""  # ISO date string, e.g. "2026-03-20"
     priority: int = 0  # 0=normal, 1=important (!), 2=critical (!!)
     recurrence: str = ""  # e.g. "daily", "2d", "weekly", "weekdays", "monthly"
+    assignee: str = ""  # username of assigned person
 
     def to_lines(self) -> list[str]:
         check = "x" if self.done else " "
@@ -69,7 +70,8 @@ class Task:
         dl = f" @due({self.deadline})" if self.deadline else ""
         rec = f" @every({self.recurrence})" if self.recurrence else ""
         pri = f" @p({self.priority})" if self.priority else ""
-        lines = [f"- [{check}] {tag}{self.text}{dl}{rec}{pri}"]
+        asg = f" @assigned({self.assignee})" if self.assignee else ""
+        lines = [f"- [{check}] {tag}{self.text}{dl}{rec}{pri}{asg}"]
         for note in self.notes:
             lines.append(f"  - note: {note}")
         return lines
@@ -150,6 +152,11 @@ def _parse_task(line: str) -> Task | None:
     if pri_match:
         priority = int(pri_match.group(1))
         text = text[:pri_match.start()] + text[pri_match.end():]
+    assignee = ""
+    asg_match = re.search(r"\s*@assigned\(([^)]+)\)", text)
+    if asg_match:
+        assignee = asg_match.group(1)
+        text = text[:asg_match.start()] + text[asg_match.end():]
     return Task(
         text=text.strip(),
         project=m.group(2) or "",
@@ -157,6 +164,7 @@ def _parse_task(line: str) -> Task | None:
         deadline=deadline,
         priority=priority,
         recurrence=recurrence,
+        assignee=assignee,
     )
 
 
