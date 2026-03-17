@@ -548,7 +548,7 @@ function buildTaskEl(task, section, index, opts = {}) {
 
   const del = document.createElement("button");
   del.className = "task-delete";
-  del.textContent = "\u00d7";
+  del.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5"/><path d="M3.5 4l.7 8.3a1.5 1.5 0 001.5 1.2h4.6a1.5 1.5 0 001.5-1.2l.7-8.3"/></svg>';
   del.addEventListener("click", (e) => {
     e.stopPropagation();
     const doDelete = () => {
@@ -695,7 +695,7 @@ function buildTaskEl(task, section, index, opts = {}) {
     linkifyInto(row, note);
     const nd = document.createElement("button");
     nd.className = "task-sub-delete";
-    nd.textContent = "\u00d7";
+    nd.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5"/><path d="M3.5 4l.7 8.3a1.5 1.5 0 001.5 1.2h4.6a1.5 1.5 0 001.5-1.2l.7-8.3"/></svg>';
     nd.addEventListener("click", (e) => {
       e.stopPropagation();
       api("task/delete_note", { section, index, sub_index: ni });
@@ -722,27 +722,6 @@ function buildTaskEl(task, section, index, opts = {}) {
   addNoteRow.appendChild(addNoteInput);
   sub.appendChild(addNoteRow);
 
-  // Delete task button (primary delete action on mobile)
-  const subDel = document.createElement("button");
-  subDel.className = "task-sub-delete-task";
-  subDel.textContent = "Delete task";
-  subDel.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const doDelete = () => {
-      if (opts.deleteHandler) opts.deleteHandler();
-      else api("task/delete", { section, index });
-    };
-    const skipUntil = localStorage.getItem("pancake_skip_delete_confirm");
-    if (skipUntil && Date.now() < parseInt(skipUntil)) {
-      doDelete();
-    } else {
-      showDeleteConfirm(task.text, () => {
-        localStorage.setItem("pancake_skip_delete_confirm", String(Date.now() + 86400000));
-        doDelete();
-      });
-    }
-  });
-  sub.appendChild(subDel);
 
   wrapper.appendChild(sub);
   return wrapper;
@@ -1105,7 +1084,7 @@ function buildDoneRow(task) {
 
   const del = document.createElement("button");
   del.className = "task-delete";
-  del.textContent = "\u00d7";
+  del.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5"/><path d="M3.5 4l.7 8.3a1.5 1.5 0 001.5 1.2h4.6a1.5 1.5 0 001.5-1.2l.7-8.3"/></svg>';
   del.title = "Delete";
   if (doneIdx >= 0) {
     del.addEventListener("click", (e) => {
@@ -1287,7 +1266,7 @@ function buildProjectCard(proj, collapsed) {
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "project-delete-btn";
   deleteBtn.title = "Delete project";
-  deleteBtn.textContent = "\u00d7";
+  deleteBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5.3 4V2.7a1 1 0 011-1h3.4a1 1 0 011 1V4M6.5 7v4.5M9.5 7v4.5"/><path d="M3.5 4l.7 8.3a1.5 1.5 0 001.5 1.2h4.6a1.5 1.5 0 001.5-1.2l.7-8.3"/></svg>';
   deleteBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const taskCount = (proj.tasks || []).length;
