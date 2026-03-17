@@ -130,9 +130,10 @@ function render() {
       document.getElementById("inbox-section").classList.add("collapsed");
       sectionExpandLevels.inbox = 0;
     }
-    // Collapse projects by default on mobile to save space
+    // Collapse projects and history by default on mobile to save space
     document.getElementById("projects-section").classList.add("collapsed");
     projectsExpandLevel = 0;
+    document.getElementById("done-section").classList.add("collapsed");
   }
 }
 
