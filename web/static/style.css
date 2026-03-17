@@ -196,6 +196,15 @@ h1 {
   flex-shrink: 0;
 }
 
+.task-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  width: 100px;
+  justify-content: flex-end;
+}
+
 .task-delete {
   opacity: 0;
   background: none;
@@ -310,9 +319,6 @@ h1 {
   padding: 1px 6px;
   border-radius: 8px;
   white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 52px;
-  text-align: center;
 }
 
 .deadline-normal {

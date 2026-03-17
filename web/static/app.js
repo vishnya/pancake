@@ -451,7 +451,11 @@ function buildTaskEl(task, section, index, opts = {}) {
   div.appendChild(cb);
   div.appendChild(pri);
   div.appendChild(text);
-  div.appendChild(del);
+
+  // Right-side controls in a fixed-width container for alignment
+  const controls = document.createElement("span");
+  controls.className = "task-controls";
+  controls.appendChild(del);
   {
     const dlPill = document.createElement("span");
     if (task.recurrence) {
@@ -480,7 +484,6 @@ function buildTaskEl(task, section, index, opts = {}) {
       const commit = () => {
         const val = input.value.trim();
         if (!val) {
-          // Clear both
           api("task/recurrence", { section, index, recurrence: "" });
           api("task/deadline", { section, index, deadline: "" });
           return;
@@ -505,7 +508,7 @@ function buildTaskEl(task, section, index, opts = {}) {
       });
       input.addEventListener("blur", commit);
     });
-    div.appendChild(dlPill);
+    controls.appendChild(dlPill);
     const dlClear = document.createElement("button");
     dlClear.className = "task-deadline-clear";
     dlClear.textContent = "\u00d7";
@@ -519,8 +522,9 @@ function buildTaskEl(task, section, index, opts = {}) {
     } else {
       dlClear.style.visibility = "hidden";
     }
-    div.appendChild(dlClear);
+    controls.appendChild(dlClear);
   }
+  div.appendChild(controls);
 
   // Move up/down buttons
   const moveUp = document.createElement("button");
