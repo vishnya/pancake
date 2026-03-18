@@ -620,10 +620,10 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             else:
                 email = body.get("email", "").strip().lower()
                 role = body.get("role", "member")
-                if not email:
-                    self._json_response({"error": "email or username required"}, 400)
+                if not email or "@" not in email:
+                    self._json_response({"error": "valid email required"}, 400)
                 else:
-                    target = get_account_by_email(email) or get_account(email)  # try email first, then username
+                    target = get_account_by_email(email)
                     profile = get_profile(slug)
                     profile_name = profile["display_name"] if profile else slug
                     if target:
