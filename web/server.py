@@ -610,17 +610,36 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                     self._json_response({"error": str(e)}, 400)
         elif self.path == "/api/profile/invite":
             from pancake.priorities import get_active_profile
+            from pancake.accounts import get_account_by_email, get_profile
             slug = get_active_profile()
             if not slug or get_role(account["id"], slug) != "admin":
                 self._json_response({"error": "admin required"}, 403)
             else:
-                target = body.get("account_id", "")
+                email = body.get("email", "").strip().lower()
                 role = body.get("role", "member")
-                if not get_account(target):
-                    self._json_response({"error": f"account '{target}' not found"}, 404)
+                if not email or "@" not in email:
+                    self._json_response({"error": "valid email required"}, 400)
                 else:
-                    add_membership(target, slug, role)
-                    self._json_response({"ok": True})
+                    target = get_account_by_email(email)
+                    profile = get_profile(slug)
+                    profile_name = profile["display_name"] if profile else slug
+                    if target:
+                        # Account exists -- add them directly
+                        add_membership(target["id"], slug, role)
+                        invalidateMembersCache = True
+                        self._json_response({"ok": True, "message": f"{target['display_name']} added to {profile_name}"})
+                    else:
+                        # No account -- send invite email
+                        app_url = os.environ.get("PANCAKE_URL", "")
+                        signup_url = app_url + "/register" if app_url else ""
+                        from pancake.email import send_invite_email
+                        send_invite_email(
+                            to_email=email,
+                            profile_name=profile_name,
+                            invited_by=account.get("display_name", account["id"]),
+                            signup_url=signup_url,
+                        )
+                        self._json_response({"ok": True, "message": f"Invite sent to {email}. They\'ll need to create an account first."})
         elif self.path == "/api/profile/remove_member":
             from pancake.priorities import get_active_profile
             slug = get_active_profile()

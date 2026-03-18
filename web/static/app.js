@@ -1734,10 +1734,10 @@ async function showMembersModal() {
           <code id="signup-link">${location.origin + location.pathname.replace(/\/$/, '')}/register</code>
           <button class="copy-link-btn" title="Copy link">Copy</button>
         </div>
-        <p class="modal-hint" style="margin-top:12px">Once they have an account, enter their username below to add them to <strong>${profileName}</strong>.</p>
-        <input type="text" id="invite-username" placeholder="Their username">
+        <p class="modal-hint" style="margin-top:12px">Or enter their email to add them directly (if they have an account) or send an invite:</p>
+        <input type="email" id="invite-email" placeholder="Email address">
         <select id="invite-role"><option value="member">Member</option><option value="admin">Admin</option></select>
-        <button class="modal-confirm invite-btn">Add to ${profileName}</button>
+        <button class="modal-confirm invite-btn">Invite</button>
       </div>
       <div class="modal-error"></div>
       <div class="modal-buttons"><button class="modal-cancel">Close</button></div>
@@ -1785,20 +1785,23 @@ async function showMembersModal() {
 
   // Invite
   overlay.querySelector(".invite-btn").addEventListener("click", async () => {
-    const username = overlay.querySelector("#invite-username").value.trim().toLowerCase();
+    const email = overlay.querySelector("#invite-email").value.trim().toLowerCase();
     const role = overlay.querySelector("#invite-role").value;
-    if (!username) return;
+    if (!email || !email.includes("@")) { overlay.querySelector(".modal-error").textContent = "Enter a valid email"; return; }
     const res = await fetch("api/profile/invite", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({account_id: username, role}),
+      body: JSON.stringify({email, role}),
     });
     const data = await res.json();
     if (data.error) {
       overlay.querySelector(".modal-error").textContent = data.error;
+      overlay.querySelector(".modal-error").style.color = "#e05555";
     } else {
-      overlay.querySelector("#invite-username").value = "";
-      overlay.querySelector(".modal-error").textContent = "";
+      overlay.querySelector("#invite-email").value = "";
+      overlay.querySelector(".modal-error").textContent = data.message || "Done!";
+      overlay.querySelector(".modal-error").style.color = "#5cb85c";
+      invalidateMembersCache();
       refreshMembers();
     }
   });

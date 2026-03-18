@@ -128,3 +128,20 @@ def send_reminder_email(
     )
     subject = f"Reminder: {task_text[:60]}"
     _fire_and_forget(to_email, subject, _base_html(content))
+
+
+def send_invite_email(to_email: str, profile_name: str, invited_by: str, signup_url: str) -> None:
+    """Send an invite to join a Pancake profile."""
+    subject = f"{invited_by} invited you to {profile_name} on Pancake"
+    html = f"""
+    <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#1a1a2e;color:#e0e0e0;border-radius:12px;">
+      <h2 style="color:#a0b4d0;margin:0 0 16px;">You're invited!</h2>
+      <p><strong>{invited_by}</strong> wants you to join <strong>{profile_name}</strong> on Pancake — a shared task tracker.</p>
+      <p>Create your account to get started:</p>
+      <a href="{signup_url}" style="display:inline-block;padding:12px 24px;background:#2a3a5c;color:#a0b4d0;text-decoration:none;border-radius:8px;font-weight:600;margin:12px 0;">Create Account</a>
+      <p style="font-size:13px;color:#7a8a9e;margin-top:16px;">Once you sign up, {invited_by} will add you to {profile_name} and you'll see shared tasks.</p>
+    </div>
+    """
+    def _send():
+        _send_email(to_email, subject, html)
+    threading.Thread(target=_send, daemon=True).start()

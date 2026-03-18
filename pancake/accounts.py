@@ -84,6 +84,13 @@ def get_account(account_id: str) -> dict | None:
     return None
 
 
+def get_account_by_email(email: str) -> dict | None:
+    for a in load_accounts():
+        if a.get("email", "").lower() == email.lower():
+            return a
+    return None
+
+
 def create_account(account_id: str, display_name: str, email: str, password: str) -> dict:
     accounts = load_accounts()
     if any(a["id"] == account_id for a in accounts):
