@@ -295,6 +295,11 @@ h1 {
 /* Task wrapper (collapsible) */
 .task-wrapper {
   border-radius: 6px;
+  transition: background 0.15s ease-out;
+}
+
+.task-wrapper.expanded {
+  background: rgba(30, 45, 74, 0.5);
 }
 
 .task-wrapper .task-sub {
@@ -1613,6 +1618,14 @@ body {
     align-items: center;
   }
 
+  .task-wrapper.expanded .task {
+    align-items: flex-start;
+  }
+
+  .task-wrapper.expanded .task input[type="checkbox"] {
+    margin-top: 2px;
+  }
+
   .task input[type="checkbox"] {
     width: 18px;
     height: 18px;
@@ -1626,6 +1639,13 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    touch-action: manipulation;
+  }
+
+  .task-wrapper.expanded .task-text {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 
   .task-priority {

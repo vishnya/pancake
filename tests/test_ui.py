@@ -538,3 +538,56 @@ def test_project_header_icon_spacing(page, server_url, viewport):
         f"badge→archive={gaps['badge_to_archive']:.1f}px, "
         f"archive→delete={gaps['archive_to_delete']:.1f}px (ratio={ratio:.1f})"
     )
+
+
+# ---------------------------------------------------------------------------
+# 24. test_mobile_task_text_expands_on_tap
+#     Regression: truncated task text on mobile had no way to see full text.
+#     Tapping the task row should expand the text from ellipsis to full wrap.
+# ---------------------------------------------------------------------------
+
+def test_mobile_task_text_expands_on_tap(page, server_url):
+    long_text = "Buy train tickets Paris to Arora for the family vacation in summer"
+    seed(
+        active=[Task(text=long_text, project="TestProj")],
+        projects=[ProjectInfo(name="TestProj")],
+    )
+    page.set_viewport_size(IPHONE_VIEWPORT)
+    _navigate(page, server_url)
+
+    # Expand active section (collapsed on mobile when non-empty it should be visible)
+    page.locator(".active-header").click()
+    page.wait_for_timeout(200)
+
+    task_text = page.locator(".task-text").first
+    expect(task_text).to_be_visible()
+
+    # Before tap: text should be truncated (nowrap + ellipsis)
+    pre_tap = page.evaluate("""() => {
+        const el = document.querySelector('.task-text');
+        const style = getComputedStyle(el);
+        return {
+            whiteSpace: style.whiteSpace,
+            overflow: style.overflow,
+            height: el.getBoundingClientRect().height,
+        };
+    }""")
+    assert pre_tap["whiteSpace"] == "nowrap", "Text should be nowrap before tap"
+
+    # Tap the task row to expand
+    page.locator(".task").first.click()
+    page.wait_for_timeout(200)
+
+    # After tap: text should wrap and show full content
+    post_tap = page.evaluate("""() => {
+        const el = document.querySelector('.task-text');
+        const style = getComputedStyle(el);
+        return {
+            whiteSpace: style.whiteSpace,
+            overflow: style.overflow,
+            height: el.getBoundingClientRect().height,
+        };
+    }""")
+    assert post_tap["whiteSpace"] == "normal", "Text should wrap after tap"
+    # The expanded text should be taller (multi-line)
+    assert post_tap["height"] >= pre_tap["height"], "Expanded text should be at least as tall"
