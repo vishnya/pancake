@@ -487,3 +487,54 @@ def test_no_text_overflow(page, server_url, viewport):
 
     issues = check_no_text_overflow(page)
     assert not issues, f"Text overflow issues: {issues}"
+
+
+# ---------------------------------------------------------------------------
+# 23. test_project_header_icon_spacing
+#     Regression: archive and delete icons had inconsistent gaps due to
+#     oversized button containers creating visual spacing mismatch.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("viewport", [DESKTOP_VIEWPORT, IPHONE_VIEWPORT], ids=["desktop", "mobile"])
+def test_project_header_icon_spacing(page, server_url, viewport):
+    seed(
+        projects=[
+            ProjectInfo(name="TestProj", tasks=[Task(text="task1", project="TestProj")]),
+        ],
+    )
+    page.set_viewport_size(viewport)
+    _navigate(page, server_url)
+
+    # Expand the projects section (collapsed on mobile)
+    page.locator(".projects-header").click()
+    page.wait_for_timeout(200)
+
+    # On desktop, hover to make buttons visible
+    if viewport == DESKTOP_VIEWPORT:
+        page.locator(".project-header").first.hover()
+        page.wait_for_timeout(100)
+
+    gaps = page.evaluate("""() => {
+        const header = document.querySelector('.project-header');
+        if (!header) return {error: 'no project header found'};
+        const badge = header.querySelector('.project-badge');
+        const archive = header.querySelector('.project-archive-btn');
+        const del = header.querySelector('.project-delete-btn');
+        if (!badge || !archive || !del) return {error: 'missing elements'};
+        const badgeRect = badge.getBoundingClientRect();
+        const archiveRect = archive.getBoundingClientRect();
+        const delRect = del.getBoundingClientRect();
+        return {
+            badge_to_archive: archiveRect.left - badgeRect.right,
+            archive_to_delete: delRect.left - archiveRect.right,
+        };
+    }""")
+    assert "error" not in gaps, f"Could not measure: {gaps['error']}"
+    # The gap between archive and delete should not be more than 2x
+    # the gap between badge and archive (i.e. roughly uniform)
+    ratio = gaps["archive_to_delete"] / max(gaps["badge_to_archive"], 1)
+    assert ratio < 2.0, (
+        f"Project header icon spacing is uneven: "
+        f"badge→archive={gaps['badge_to_archive']:.1f}px, "
+        f"archive→delete={gaps['archive_to_delete']:.1f}px (ratio={ratio:.1f})"
+    )
