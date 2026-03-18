@@ -239,6 +239,39 @@ def projects_dir_for_profile(profile_id: str) -> Path:
     return _data_root() / "vault" / profile_id / "Projects"
 
 
+# --- Pending invites ---
+
+def load_invites() -> list[dict]:
+    return _load_json("invites.json")
+
+def save_invites(invites: list[dict]) -> None:
+    _save_json("invites.json", invites)
+
+def add_invite(email: str, profile_id: str, role: str = "member") -> None:
+    invites = load_invites()
+    # Don't duplicate
+    if any(i["email"] == email and i["profile"] == profile_id for i in invites):
+        return
+    invites.append({"email": email, "profile": profile_id, "role": role})
+    save_invites(invites)
+
+def claim_invites(email: str, account_id: str) -> list[str]:
+    """When a user signs up, add them to any profiles they were invited to. Returns profile names."""
+    invites = load_invites()
+    claimed = []
+    remaining = []
+    for inv in invites:
+        if inv["email"].lower() == email.lower():
+            add_membership(account_id, inv["profile"], inv["role"])
+            profile = get_profile(inv["profile"])
+            claimed.append(profile["display_name"] if profile else inv["profile"])
+        else:
+            remaining.append(inv)
+    if claimed:
+        save_invites(remaining)
+    return claimed
+
+
 # --- Bootstrap: ensure at least one account and profile exist ---
 
 def ensure_initialized(default_password: str | None = None) -> None:

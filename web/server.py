@@ -27,6 +27,7 @@ from pancake.accounts import (
     get_memberships_for_account, get_memberships_for_profile,
     has_access, get_role, add_membership, remove_membership,
     ensure_initialized, data_dir_for_profile, load_accounts,
+    add_invite, claim_invites,
 )
 import pancake.tools
 from pancake.email import send_assignment_email, send_reminder_email
@@ -464,6 +465,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                     create_profile(profile_id, "Personal", username)
                 except ValueError:
                     pass  # profile already exists
+                # Claim any pending invites for this email
+                claimed = claim_invites(email, username)
                 # Auto-login after registration
                 token = secrets.token_urlsafe(32)
                 VALID_SESSIONS[token] = {"account": account["id"], "expiry": time.time() + SESSION_MAX_AGE}
@@ -639,7 +642,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                             invited_by=account.get("display_name", account["id"]),
                             signup_url=signup_url,
                         )
-                        self._json_response({"ok": True, "message": f"Invite sent to {email}. They\'ll need to create an account first."})
+                        add_invite(email, slug, role)
+                        self._json_response({"ok": True, "message": f"Invite sent to {email}"})
         elif self.path == "/api/profile/remove_member":
             from pancake.priorities import get_active_profile
             slug = get_active_profile()
