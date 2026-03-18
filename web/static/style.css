@@ -303,11 +303,17 @@ h1 {
 }
 
 .task-wrapper .task-sub {
-  display: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms ease-out;
+}
+
+.task-sub-inner {
+  overflow: hidden;
 }
 
 .task-wrapper.expanded .task-sub {
-  display: block;
+  grid-template-rows: 1fr;
 }
 
 .task-wrapper.dragging {
@@ -315,7 +321,7 @@ h1 {
 }
 
 /* Task sub-content */
-.task-sub {
+.task-sub-inner {
   padding: 4px 12px 8px 40px;
   font-size: 12px;
 }
@@ -1640,12 +1646,23 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     touch-action: manipulation;
+    transition: all 200ms ease-out;
   }
 
   .task-wrapper.expanded .task-text {
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
+  }
+
+  /* Smooth row height transition on expand */
+  .task {
+    transition: padding 200ms ease-out;
+  }
+
+  .task-wrapper.expanded .task {
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .task-priority {

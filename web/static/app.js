@@ -690,6 +690,8 @@ function buildTaskEl(task, section, index, opts = {}) {
   // Expandable sub-content
   const sub = document.createElement("div");
   sub.className = "task-sub";
+  const subInner = document.createElement("div");
+  subInner.className = "task-sub-inner";
 
   // Notes (with auto-linkified URLs)
   (task.notes || []).forEach((note, ni) => {
@@ -704,7 +706,7 @@ function buildTaskEl(task, section, index, opts = {}) {
       api("task/delete_note", { section, index, sub_index: ni });
     });
     row.appendChild(nd);
-    sub.appendChild(row);
+    subInner.appendChild(row);
   });
 
   // Add note input
@@ -722,8 +724,8 @@ function buildTaskEl(task, section, index, opts = {}) {
       if (val) { addNoteInput.value = ""; api("task/add_note", { section, index, text: val }); }
     }
   });
-  addNoteRow.appendChild(addNoteInput);
-  sub.appendChild(addNoteRow);
+  subInner.appendChild(addNoteRow);
+  sub.appendChild(subInner);
 
 
   wrapper.appendChild(sub);

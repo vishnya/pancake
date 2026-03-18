@@ -541,6 +541,46 @@ def test_project_header_icon_spacing(page, server_url, viewport):
 
 
 # ---------------------------------------------------------------------------
+# 24. test_mobile_tap_expand_truncated_text
+#     Tapping a task with truncated text on mobile should expand to show full text.
+# ---------------------------------------------------------------------------
+
+def test_mobile_tap_expand_truncated_text(page, server_url):
+    long_text = "Buy train tickets Paris to Barcelona via Lyon for the family summer vacation trip"
+    seed(
+        active=[Task(text=long_text, project="Travel")],
+        projects=[ProjectInfo(name="Travel")],
+    )
+    page.set_viewport_size(IPHONE_VIEWPORT)
+    _navigate(page, server_url)
+
+    # Expand the active section (collapsed on mobile when empty-ish, but we have 1 task)
+    page.locator(".active-header").click()
+    page.wait_for_timeout(200)
+
+    task_text = page.locator("#active-list .task-text").first
+    expect(task_text).to_be_visible()
+
+    # Before tap: text should be truncated (scrollWidth > clientWidth)
+    is_truncated = task_text.evaluate(
+        "el => el.scrollWidth > el.clientWidth"
+    )
+    assert is_truncated, "Task text should be truncated on mobile before tap"
+
+    # Tap the task row to expand
+    page.locator("#active-list .task").first.click()
+    page.wait_for_timeout(300)
+
+    # After tap: text should be fully visible (white-space: normal)
+    white_space = task_text.evaluate("el => getComputedStyle(el).whiteSpace")
+    assert white_space == "normal", f"Expected white-space: normal after expand, got {white_space}"
+
+    # The wrapper should have the expanded class
+    wrapper = page.locator("#active-list .task-wrapper").first
+    expect(wrapper).to_have_class(re.compile(r"expanded"))
+
+
+# ---------------------------------------------------------------------------
 # 24. test_mobile_task_text_expands_on_tap
 #     Regression: truncated task text on mobile had no way to see full text.
 #     Tapping the task row should expand the text from ellipsis to full wrap.
