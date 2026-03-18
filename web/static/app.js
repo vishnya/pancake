@@ -1627,6 +1627,7 @@ async function initProfileSwitcher() {
     applyProfileTheme(activeIdx >= 0 ? activeIdx : 0);
     label.addEventListener("click", () => menu.classList.toggle("open"));
     menu.innerHTML = "";
+    const activeColor = PROFILE_COLORS[activeIdx >= 0 ? activeIdx : 0].accent;
     data.profiles.forEach(p => {
       const item = document.createElement("div");
       const pIdx = data.profiles.indexOf(p);
@@ -1645,24 +1646,26 @@ async function initProfileSwitcher() {
         });
       }
       menu.appendChild(item);
+      // "Manage members" right under the active profile
+      if (p.profile_id === data.active_profile && active && active.role === "admin") {
+        const membersBtn = document.createElement("div");
+        membersBtn.className = "profile-menu-item profile-menu-sub";
+        membersBtn.textContent = "Manage members";
+        membersBtn.style.color = pColor.accent;
+        membersBtn.style.paddingLeft = "28px";
+        membersBtn.style.fontSize = "12px";
+        membersBtn.style.opacity = "0.7";
+        membersBtn.addEventListener("click", () => { menu.classList.remove("open"); showMembersModal(); });
+        menu.appendChild(membersBtn);
+      }
     });
-    // "New profile" button
+    // "New profile" button -- muted neutral color, distinct from profile colors
     const newBtn = document.createElement("div");
     newBtn.className = "profile-menu-item profile-menu-action";
     newBtn.textContent = "+ New profile";
-    const activeColor = PROFILE_COLORS[activeIdx >= 0 ? activeIdx : 0].accent;
-    newBtn.style.color = activeColor;
+    newBtn.style.color = "#667788";
     newBtn.addEventListener("click", () => { menu.classList.remove("open"); showCreateProfileModal(); });
     menu.appendChild(newBtn);
-    // "Manage members" button (admin only)
-    if (active && active.role === "admin") {
-      const membersBtn = document.createElement("div");
-      membersBtn.className = "profile-menu-item profile-menu-action";
-      membersBtn.textContent = "Manage members";
-      membersBtn.style.color = activeColor;
-      membersBtn.addEventListener("click", () => { menu.classList.remove("open"); showMembersModal(); });
-      menu.appendChild(membersBtn);
-    }
     document.addEventListener("click", (e) => {
       if (!switcher.contains(e.target)) menu.classList.remove("open");
     });
