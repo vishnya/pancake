@@ -1788,7 +1788,7 @@ async function showMembersModal() {
   overlay.querySelector(".invite-btn").addEventListener("click", async () => {
     const email = overlay.querySelector("#invite-email").value.trim().toLowerCase();
     const role = "member";
-    if (!email || !email.includes("@")) { overlay.querySelector(".modal-error").textContent = "Enter a valid email"; return; }
+    if (!email) { overlay.querySelector(".modal-error").textContent = "Enter an email or username"; return; }
     const res = await fetch("api/profile/invite", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
