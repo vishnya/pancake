@@ -5,6 +5,12 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-18 | Server
+- Tap to expand truncated task text on mobile (smooth CSS grid 0fr/1fr animation)
+- Archived projects now show in History section with restore button and count
+- Project header icon spacing tightened (20px buttons, was 28px)
+- UI test for project icon spacing and mobile text expansion
+
 ### 2026-03-17 | Server
 - Recurring tasks due tomorrow now auto-sort to Active (was only today/overdue before)
 - Completing a recurring task sets manual=True so it stays in Up Next until deadline arrives
