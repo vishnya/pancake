@@ -1735,9 +1735,7 @@ async function showMembersModal() {
       <div class="members-list">Loading...</div>
       <div class="invite-section">
         <h4>Add someone</h4>
-        <input type="email" id="invite-email" placeholder="Email address">
-        <p class="modal-hint">If they already have an account, they'll be added immediately. If not, they'll get an email invite to sign up.</p>
-        <select id="invite-role"><option value="member">Member</option><option value="admin">Admin</option></select>
+        <input type="text" id="invite-email" placeholder="Email or username">
         <button class="modal-confirm invite-btn">Invite</button>
       </div>
       <div class="modal-error"></div>
