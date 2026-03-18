@@ -88,8 +88,8 @@ h1 {
 }
 
 .profile-menu-action {
-  color: #a0b4d0;
   border-top: 1px solid #2a3a5c;
+  opacity: 0.8;
 }
 
 .profile-menu-action:first-of-type {

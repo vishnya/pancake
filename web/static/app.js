@@ -1650,6 +1650,8 @@ async function initProfileSwitcher() {
     const newBtn = document.createElement("div");
     newBtn.className = "profile-menu-item profile-menu-action";
     newBtn.textContent = "+ New profile";
+    const activeColor = PROFILE_COLORS[activeIdx >= 0 ? activeIdx : 0].accent;
+    newBtn.style.color = activeColor;
     newBtn.addEventListener("click", () => { menu.classList.remove("open"); showCreateProfileModal(); });
     menu.appendChild(newBtn);
     // "Manage members" button (admin only)
@@ -1657,6 +1659,7 @@ async function initProfileSwitcher() {
       const membersBtn = document.createElement("div");
       membersBtn.className = "profile-menu-item profile-menu-action";
       membersBtn.textContent = "Manage members";
+      membersBtn.style.color = activeColor;
       membersBtn.addEventListener("click", () => { menu.classList.remove("open"); showMembersModal(); });
       menu.appendChild(membersBtn);
     }
