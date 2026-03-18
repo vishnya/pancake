@@ -1729,13 +1729,8 @@ async function showMembersModal() {
       <div class="members-list">Loading...</div>
       <div class="invite-section">
         <h4>Add someone</h4>
-        <p class="modal-hint">They need an account first. Share this link for them to sign up:</p>
-        <div class="invite-link-box">
-          <code id="signup-link">${location.origin + location.pathname.replace(/\/$/, '')}/register</code>
-          <button class="copy-link-btn" title="Copy link">Copy</button>
-        </div>
-        <p class="modal-hint" style="margin-top:12px">Or enter their email to add them directly (if they have an account) or send an invite:</p>
         <input type="email" id="invite-email" placeholder="Email address">
+        <p class="modal-hint">If they already have an account, they'll be added immediately. If not, they'll get an email invite to sign up.</p>
         <select id="invite-role"><option value="member">Member</option><option value="admin">Admin</option></select>
         <button class="modal-confirm invite-btn">Invite</button>
       </div>
