@@ -1682,6 +1682,14 @@ function showCreateProfileModal() {
   document.body.appendChild(overlay);
   overlay.querySelector(".modal-cancel").addEventListener("click", () => overlay.remove());
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector(".copy-link-btn")?.addEventListener("click", () => {
+    const link = overlay.querySelector("#signup-link").textContent;
+    navigator.clipboard.writeText(link).then(() => {
+      const btn = overlay.querySelector(".copy-link-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    });
+  });
   overlay.querySelector(".modal-confirm").addEventListener("click", async () => {
     const name = overlay.querySelector("#new-profile-name").value.trim();
     if (!name) return;
@@ -1711,17 +1719,25 @@ function showCreateProfileModal() {
 }
 
 async function showMembersModal() {
+  const profileName = document.querySelector(".profile-label")?.textContent || "this profile";
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal">
-      <h3>Members</h3>
+      <h3>${profileName} members</h3>
+      <p class="modal-hint">People who can see and edit tasks in this profile.</p>
       <div class="members-list">Loading...</div>
       <div class="invite-section">
-        <h4>Invite member</h4>
-        <input type="text" id="invite-username" placeholder="Username to invite">
+        <h4>Add someone</h4>
+        <p class="modal-hint">They need an account first. Share this link for them to sign up:</p>
+        <div class="invite-link-box">
+          <code id="signup-link">${location.origin + location.pathname.replace(/\/$/, '')}/register</code>
+          <button class="copy-link-btn" title="Copy link">Copy</button>
+        </div>
+        <p class="modal-hint" style="margin-top:12px">Once they have an account, enter their username below to add them to <strong>${profileName}</strong>.</p>
+        <input type="text" id="invite-username" placeholder="Their username">
         <select id="invite-role"><option value="member">Member</option><option value="admin">Admin</option></select>
-        <button class="modal-confirm invite-btn">Invite</button>
+        <button class="modal-confirm invite-btn">Add to ${profileName}</button>
       </div>
       <div class="modal-error"></div>
       <div class="modal-buttons"><button class="modal-cancel">Close</button></div>
@@ -1729,6 +1745,14 @@ async function showMembersModal() {
   document.body.appendChild(overlay);
   overlay.querySelector(".modal-cancel").addEventListener("click", () => overlay.remove());
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector(".copy-link-btn")?.addEventListener("click", () => {
+    const link = overlay.querySelector("#signup-link").textContent;
+    navigator.clipboard.writeText(link).then(() => {
+      const btn = overlay.querySelector(".copy-link-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    });
+  });
 
   // Load members
   async function refreshMembers() {

@@ -1457,6 +1457,47 @@ h1 {
   background: #dd5555;
 }
 
+
+.modal-hint {
+  font-size: 12px;
+  color: #7a8a9e;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.invite-link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f1a2e;
+  border: 1px solid #2a3a5c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+}
+
+.invite-link-box code {
+  flex: 1;
+  font-size: 11px;
+  color: #a0b4d0;
+  word-break: break-all;
+}
+
+.copy-link-btn {
+  background: #2a3a5c;
+  color: #a0b4d0;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.copy-link-btn:hover {
+  background: #3a4a6c;
+}
+
 /* Profile/member modals */
 .modal h3 { font-size: 16px; color: #a0b4d0; margin-bottom: 16px; }
 .modal h4 { font-size: 13px; color: #8899aa; margin: 12px 0 8px; }
