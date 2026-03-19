@@ -22,7 +22,8 @@ from urllib.parse import parse_qs
 
 from pancake.priorities import load, save, parse, render, Task, ProjectInfo, Priorities, now_str, vault_path, user_context_path, next_due_date, set_active_profile, auto_sort_recurring
 from pancake.context import build_context
-from pancake.chat import is_available as chat_is_available, stream_response, stream_response_with_tools
+from pancake.chat import is_available as chat_is_available, get_active_backend, stream_response, stream_response_with_tools
+from pancake.chat_local import stream_response as local_stream_response
 from pancake.accounts import (
     authenticate, get_account, create_account, create_profile,
     get_memberships_for_account, get_memberships_for_profile,
@@ -393,7 +394,7 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         elif self.path == "/api/priorities":
             self._json_response(self._get_priorities())
         elif self.path == "/api/chat/status":
-            self._json_response({"available": chat_is_available()})
+            self._json_response({"available": chat_is_available(), "backend": get_active_backend()})
         elif self.path.startswith("/api/chat/history?"):
             qs = parse_qs(self.path.split("?", 1)[1])
             sid = qs.get("session_id", [""])[0]
@@ -1174,10 +1175,17 @@ class PancakeHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
+        backend = get_active_backend()
+
         try:
-            for event_type, event_data in stream_response_with_tools(
-                system_prompt, history, TOOLS, execute_tool
-            ):
+            if backend == "local":
+                event_stream = local_stream_response(system_prompt, history)
+            else:
+                event_stream = stream_response_with_tools(
+                    system_prompt, history, TOOLS, execute_tool
+                )
+
+            for event_type, event_data in event_stream:
                 if event_type == "text":
                     data = json.dumps({"type": "delta", "text": event_data})
                 elif event_type == "action":
