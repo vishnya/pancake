@@ -1,10 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Pancake installer -- interactive, guides you through everything.
-# Usage: curl -fsSL https://raw.githubusercontent.com/vishnya/pancake/main/install.sh | bash
+# Pancake installer -- works on locked-down servers and personal machines alike.
+# Usage: bash install.sh (from the pancake directory)
 
 PANCAKE_DIR="${PANCAKE_DIR:-$HOME/pancake}"
+ENV_FILE="$PANCAKE_DIR/.env"
 BOLD="\033[1m"
 DIM="\033[2m"
 GREEN="\033[32m"
@@ -23,31 +24,161 @@ if [ -d "$PANCAKE_DIR/.git" ]; then
     cd "$PANCAKE_DIR"
     git pull -q origin main 2>/dev/null || true
 elif [ -d "$PANCAKE_DIR" ] && [ -f "$PANCAKE_DIR/pyproject.toml" ]; then
-    echo -e "Found existing install at ${GREEN}$PANCAKE_DIR${RESET}"
+    echo -e "Found existing install at ${GREEN}$PANCAKE_DIR${RESET} (no git)"
     cd "$PANCAKE_DIR"
 else
-    echo -e "Installing to ${GREEN}$PANCAKE_DIR${RESET}"
-    git clone -q https://github.com/vishnya/pancake.git "$PANCAKE_DIR"
-    cd "$PANCAKE_DIR"
+    echo "Cloning Pancake..."
+    if git clone -q https://github.com/vishnya/pancake.git "$PANCAKE_DIR" 2>/dev/null; then
+        cd "$PANCAKE_DIR"
+    else
+        echo ""
+        echo -e "${RED}Could not reach github.com.${RESET}"
+        echo "Copy the repo to $PANCAKE_DIR manually, then re-run this script."
+        echo ""
+        echo "  From a machine with access:"
+        echo "    git clone https://github.com/vishnya/pancake.git"
+        echo "    scp -r pancake $(whoami)@$(hostname):~/pancake"
+        echo ""
+        exit 1
+    fi
 fi
 
-# ── Step 2: Python environment ──────────────────────────────────────────────
+# ── Step 2: Check if installing inside an existing source repository ────────
+
+INSIDE_REPO=false
+REPO_ROOT=""
+
+if git -C "$PANCAKE_DIR" rev-parse --show-toplevel &>/dev/null; then
+    REPO_ROOT=$(git -C "$PANCAKE_DIR" rev-parse --show-toplevel 2>/dev/null)
+    [ "$REPO_ROOT" != "$PANCAKE_DIR" ] && INSIDE_REPO=true
+elif command -v sl &>/dev/null && sl -R "$PANCAKE_DIR" root &>/dev/null 2>&1; then
+    REPO_ROOT=$(sl -R "$PANCAKE_DIR" root 2>/dev/null)
+    [ "$REPO_ROOT" != "$PANCAKE_DIR" ] && INSIDE_REPO=true
+elif command -v hg &>/dev/null && hg -R "$PANCAKE_DIR" root &>/dev/null 2>&1; then
+    REPO_ROOT=$(hg -R "$PANCAKE_DIR" root 2>/dev/null)
+    [ "$REPO_ROOT" != "$PANCAKE_DIR" ] && INSIDE_REPO=true
+fi
+
+if [ "$INSIDE_REPO" = true ]; then
+    echo ""
+    echo -e "${YELLOW}WARNING: $PANCAKE_DIR is inside a source repository ($REPO_ROOT).${RESET}"
+    echo "Pancake should be installed outside of any source repo"
+    echo "to avoid accidentally committing personal data."
+    echo ""
+    read -p "Continue anyway? [y/N]: " CONTINUE
+    if [[ ! "$CONTINUE" =~ ^[Yy] ]]; then
+        echo "Aborted. Move the pancake directory outside of $REPO_ROOT and try again."
+        exit 1
+    fi
+fi
+
+# ── Step 3: Add Pancake to global ignore files for all VCS tools ────────────
+
+# Global git ignore
+GLOBAL_GITIGNORE="${HOME}/.config/git/ignore"
+mkdir -p "$(dirname "$GLOBAL_GITIGNORE")"
+touch "$GLOBAL_GITIGNORE"
+if ! grep -q "pancake" "$GLOBAL_GITIGNORE"; then
+    echo "" >> "$GLOBAL_GITIGNORE"
+    echo "# Pancake (personal tool, not production code)" >> "$GLOBAL_GITIGNORE"
+    echo "pancake/" >> "$GLOBAL_GITIGNORE"
+fi
+git config --global core.excludesFile "$GLOBAL_GITIGNORE"
+
+# Global Mercurial/Sapling ignore
+GLOBAL_HGIGNORE="${HOME}/.hgignore_global"
+touch "$GLOBAL_HGIGNORE"
+if ! grep -q "pancake" "$GLOBAL_HGIGNORE"; then
+    echo "" >> "$GLOBAL_HGIGNORE"
+    echo "# Pancake (personal tool, not production code)" >> "$GLOBAL_HGIGNORE"
+    echo "syntax: glob" >> "$GLOBAL_HGIGNORE"
+    echo "pancake/" >> "$GLOBAL_HGIGNORE"
+fi
+
+# ── Step 4: Python venv setup with proxy awareness ─────────────────────────
 
 echo "Setting up Python..."
-if command -v uv &>/dev/null; then
-    uv venv "$PANCAKE_DIR/.venv" -q 2>/dev/null || true
-    uv pip install -q -e "$PANCAKE_DIR" -p "$PANCAKE_DIR/.venv/bin/python"
-elif command -v python3 &>/dev/null; then
-    python3 -m venv "$PANCAKE_DIR/.venv"
-    "$PANCAKE_DIR/.venv/bin/pip" install -q -e "$PANCAKE_DIR"
-else
+
+# Find best Python (prefer 3.12+ if available)
+PYTHON=$(command -v python3.12 || command -v python3)
+
+if [ -z "$PYTHON" ]; then
     echo -e "${RED}Python 3.10+ is required but not found.${RESET}"
-    echo "Install it first: https://www.python.org/downloads/"
     exit 1
 fi
+
+# Create venv
+"$PYTHON" -m venv "$PANCAKE_DIR/.venv"
+
+# Install with proxy if set in environment, otherwise without
+PIP_PROXY=""
+if [ -n "${https_proxy:-$HTTPS_PROXY}" ]; then
+    PIP_PROXY="--proxy ${https_proxy:-$HTTPS_PROXY}"
+fi
+
+"$PANCAKE_DIR/.venv/bin/pip" install $PIP_PROXY -q -e "$PANCAKE_DIR"
+
 echo -e "${GREEN}Done.${RESET}"
 
-# ── Step 3: pk CLI ──────────────────────────────────────────────────────────
+# ── Step 5: Chat backend selection ─────────────────────────────────────────
+
+echo ""
+echo -e "${BOLD}How should the chat panel connect to Claude?${RESET}"
+echo ""
+echo "  1) Local Claude CLI  (recommended if claude is installed)"
+echo "     Uses the claude command installed on this machine."
+echo "     No API key needed."
+echo ""
+echo "  2) Anthropic API"
+echo "     Requires your own ANTHROPIC_API_KEY."
+echo "     Installs the anthropic Python package."
+echo ""
+echo "  3) Disable chat"
+echo "     Skip chat setup entirely."
+echo ""
+read -p "Choose [1/2/3]: " CHAT_CHOICE
+echo ""
+
+CHAT_BACKEND="disabled"
+case "$CHAT_CHOICE" in
+    1)
+        CHAT_BACKEND="local"
+        ;;
+    2)
+        CHAT_BACKEND="api"
+        "$PANCAKE_DIR/.venv/bin/pip" install $PIP_PROXY -q -e "$PANCAKE_DIR[api]"
+        echo ""
+        read -p "ANTHROPIC_API_KEY: " API_KEY
+        echo ""
+        ;;
+    3)
+        CHAT_BACKEND="disabled"
+        ;;
+esac
+
+# ── Step 6: Create data directories ────────────────────────────────────────
+
+mkdir -p "$PANCAKE_DIR/vault" "$PANCAKE_DIR/data" "$PANCAKE_DIR/config"
+
+# ── Step 7: Write env config ───────────────────────────────────────────────
+
+cat > "$ENV_FILE" << EOF
+PANCAKE_DIR=$PANCAKE_DIR
+PANCAKE_HOST=0.0.0.0
+PANCAKE_CHAT_BACKEND=$CHAT_BACKEND
+EOF
+
+if [ "$CHAT_BACKEND" = "api" ] && [ -n "${API_KEY:-}" ]; then
+    echo "ANTHROPIC_API_KEY=$API_KEY" >> "$ENV_FILE"
+fi
+
+if [ "$CHAT_BACKEND" = "local" ]; then
+    echo "PANCAKE_CHAT_MODEL=claude-opus-4-6[1m]" >> "$ENV_FILE"
+fi
+
+chmod 600 "$ENV_FILE"
+
+# ── Step 8: pk CLI ─────────────────────────────────────────────────────────
 
 LOCAL_BIN="${HOME}/.local/bin"
 mkdir -p "$LOCAL_BIN" 2>/dev/null || true
@@ -55,73 +186,14 @@ if [ -d "$LOCAL_BIN" ]; then
     ln -sf "$PANCAKE_DIR/.venv/bin/pk" "$LOCAL_BIN/pk"
 fi
 
-# ── Step 4: Ask about setup mode ────────────────────────────────────────────
+# ── Step 9: Start the server ───────────────────────────────────────────────
 
-echo ""
-echo -e "${BOLD}How will you use Pancake?${RESET}"
-echo ""
-echo "  1) On a server  (recommended)"
-echo "     Access from your phone or any device. Share with your"
-echo "     household. Always on, even when your laptop is closed."
-echo ""
-echo "  2) On this computer only"
-echo "     Just for you, on this machine. No phone access, no sharing."
-echo "     Only works while this computer is on and awake."
-echo ""
-read -p "Choose [1/2]: " MODE
-echo ""
-
-# ── Step 5: Set password ────────────────────────────────────────────────────
-
-echo -e "${BOLD}Set a password.${RESET}"
-echo -e "${DIM}You'll use this to log in from your browser.${RESET}"
-echo ""
-while true; do
-    read -s -p "Password (min 6 characters): " PASSWORD
-    echo ""
-    if [ ${#PASSWORD} -lt 6 ]; then
-        echo -e "${RED}Too short. Try again.${RESET}"
-        continue
-    fi
-    read -s -p "Confirm: " PASSWORD2
-    echo ""
-    if [ "$PASSWORD" != "$PASSWORD2" ]; then
-        echo -e "${RED}Passwords don't match. Try again.${RESET}"
-        continue
-    fi
-    break
-done
-
-# ── Step 6: Create data directories ─────────────────────────────────────────
-
-DATA_DIR="$PANCAKE_DIR"
-mkdir -p "$DATA_DIR/vault" "$DATA_DIR/data" "$DATA_DIR/config"
-
-# ── Step 7: Write env config ────────────────────────────────────────────────
-
-ENV_FILE="$PANCAKE_DIR/.env"
-cat > "$ENV_FILE" << EOF
-PANCAKE_PASSWORD=$PASSWORD
-PANCAKE_DATA_ROOT=$DATA_DIR
-EOF
-chmod 600 "$ENV_FILE"
-
-# ── Step 8: Mode-specific setup ─────────────────────────────────────────────
-
-if [ "$MODE" = "1" ]; then
-    # ── Server mode ──
-    echo ""
-    HOST_BIND="0.0.0.0"
-
-    # Add host binding to env
-    echo "PANCAKE_HOST=$HOST_BIND" >> "$ENV_FILE"
-
-    # systemd service
-    if command -v systemctl &>/dev/null; then
-        echo "Setting up background service..."
-        VENV_PYTHON="$PANCAKE_DIR/.venv/bin/python"
-        SERVICE_USER=$(whoami)
-        sudo tee /etc/systemd/system/pancake.service > /dev/null << SVCEOF
+if command -v systemctl &>/dev/null && systemctl --user status &>/dev/null 2>&1; then
+    # systemd available
+    echo "Setting up systemd service..."
+    VENV_PYTHON="$PANCAKE_DIR/.venv/bin/python"
+    SERVICE_USER=$(whoami)
+    sudo tee /etc/systemd/system/pancake.service > /dev/null << SVCEOF
 [Unit]
 Description=Pancake Priority Tracker
 After=network.target
@@ -138,91 +210,52 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 SVCEOF
-        sudo systemctl daemon-reload
-        sudo systemctl enable pancake -q
-        sudo systemctl start pancake
-        echo -e "${GREEN}Service installed and running.${RESET}"
-    else
-        echo -e "${YELLOW}systemd not found. Start Pancake manually:${RESET}"
-        echo "  source $ENV_FILE && $PANCAKE_DIR/.venv/bin/python -m web.server"
-    fi
+    sudo systemctl daemon-reload
+    sudo systemctl enable pancake -q
+    sudo systemctl start pancake
+    echo -e "${GREEN}Service installed and running.${RESET}"
 
-    SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "your-server-ip")
-
-    echo ""
-    echo -e "${GREEN}${BOLD}Pancake is running!${RESET}"
-    echo ""
-    echo -e "  Open in your browser: ${BOLD}http://${SERVER_IP}:5790${RESET}"
-    echo ""
-    echo "  Create your account on first visit (username, email, password)."
-    echo "  Then share the URL with your household -- they sign up the same way."
-    echo ""
-    echo -e "${BOLD}What's next:${RESET}"
-    echo "  1. Set up HTTPS so you can access it from your phone securely."
-    echo "     The simplest way: install Caddy (https://caddyserver.com)"
-    echo "     and point a domain at this server."
-    echo "  2. For email notifications when assigning tasks:"
-    echo "     Add SMTP settings to $ENV_FILE"
-    echo "     (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM)"
-    echo ""
+elif command -v tmux &>/dev/null; then
+    # tmux fallback
+    tmux kill-session -t pancake 2>/dev/null || true
+    tmux new-session -d -s pancake \
+        "cd $PANCAKE_DIR && source .env && .venv/bin/python -m web.server"
+    echo -e "${GREEN}Running in tmux session 'pancake'. Attach with: tmux attach -t pancake${RESET}"
 
 else
-    # ── Local mode (Mac or Linux desktop) ──
-
-    if [[ "$(uname)" == "Darwin" ]]; then
-        # Mac: launchd agent (auto-start on login)
-        PLIST_DIR="$HOME/Library/LaunchAgents"
-        PLIST_PATH="$PLIST_DIR/com.pancake.plist"
-        mkdir -p "$PLIST_DIR"
-        cat > "$PLIST_PATH" << PLISTEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.pancake</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>$PANCAKE_DIR/.venv/bin/python</string>
-    <string>-m</string>
-    <string>web.server</string>
-  </array>
-  <key>WorkingDirectory</key><string>$PANCAKE_DIR</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>PANCAKE_PASSWORD</key><string>$PASSWORD</string>
-    <key>PANCAKE_DATA_ROOT</key><string>$DATA_DIR</string>
-  </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/pancake.log</string>
-  <key>StandardErrorPath</key><string>/tmp/pancake.log</string>
-</dict>
-</plist>
-PLISTEOF
-        launchctl unload "$PLIST_PATH" 2>/dev/null || true
-        launchctl load "$PLIST_PATH"
-        echo -e "${GREEN}Pancake starts automatically when you log in.${RESET}"
-    else
-        echo -e "${YELLOW}Start Pancake manually:${RESET}"
-        echo "  source $ENV_FILE && $PANCAKE_DIR/.venv/bin/python -m web.server"
-    fi
-
-    echo ""
-    echo -e "${GREEN}${BOLD}Pancake is running!${RESET}"
-    echo ""
-    echo -e "  Open in your browser: ${BOLD}http://localhost:5790${RESET}"
-    echo ""
-    echo "  Create your account on first visit."
-    echo ""
-    echo -e "  ${YELLOW}Local mode limitations:${RESET}"
-    echo "  - Only works while this computer is on and awake"
-    echo "  - Can't access from your phone"
-    echo "  - Can't share with household members"
-    echo "  - To get those features, re-run this installer on a server"
-    echo ""
+    echo -e "${YELLOW}Start Pancake manually:${RESET}"
+    echo "  source $ENV_FILE && $PANCAKE_DIR/.venv/bin/python -m web.server"
 fi
 
-# ── Step 9: Claude Code commands (optional, silent) ─────────────────────────
+# ── Step 10: Auto-start via .bashrc (optional, offered during install) ─────
+
+if command -v tmux &>/dev/null && ! tmux has-session -t pancake 2>/dev/null; then
+    # Add bashrc auto-start for tmux-based setups
+    if ! grep -q "PANCAKE_DIR" ~/.bashrc 2>/dev/null; then
+        cat >> ~/.bashrc << 'BASHEOF'
+
+# Pancake
+if command -v tmux &>/dev/null && ! tmux has-session -t pancake 2>/dev/null; then
+    cd ~/pancake && tmux new-session -d -s pancake \
+        "source .env && .venv/bin/python -m web.server"
+fi
+BASHEOF
+    fi
+fi
+
+# Persist PANCAKE_DIR to .bashrc
+if ! grep -q "PANCAKE_DIR" ~/.bashrc 2>/dev/null; then
+    echo '' >> ~/.bashrc
+    echo '# Pancake' >> ~/.bashrc
+    echo "export PANCAKE_DIR=\"$PANCAKE_DIR\"" >> ~/.bashrc
+fi
+
+# Ensure ~/.local/bin is in PATH
+if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+fi
+
+# ── Step 11: Claude Code commands (optional, silent) ───────────────────────
 
 if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
     CLAUDE_COMMANDS="${HOME}/.claude/commands"
@@ -234,8 +267,18 @@ if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
     done
 fi
 
-echo -e "${DIM}Data:   $DATA_DIR/vault/${RESET}"
-echo -e "${DIM}Logs:   /tmp/pancake.log${RESET}"
+# ── Done ───────────────────────────────────────────────────────────────────
+
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "your-server-ip")
+
+echo ""
+echo -e "${GREEN}${BOLD}Pancake is running!${RESET}"
+echo ""
+echo -e "  Open in your browser: ${BOLD}http://${SERVER_IP}:5790${RESET}"
+echo ""
+echo "  Create your account on first visit (username, email, password)."
+echo ""
+echo -e "${DIM}Data:   $PANCAKE_DIR/vault/${RESET}"
 echo -e "${DIM}CLI:    pk status${RESET}"
 echo -e "${DIM}Config: $ENV_FILE${RESET}"
 echo ""
