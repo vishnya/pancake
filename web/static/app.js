@@ -399,11 +399,7 @@ function buildTaskEl(task, section, index, opts = {}) {
   const div = document.createElement("div");
   div.className = "task";
   // Recurring task cleared for current period? (deadline is in the future)
-  const isRecurringCleared = task.recurrence && task.deadline && (() => {
-    const d = new Date(task.deadline + "T00:00:00");
-    const now = new Date(); now.setHours(0,0,0,0);
-    return d > now;
-  })();
+  const isRecurringCleared = task.recurrence && task.manual;
   if (isRecurringCleared) div.classList.add("task-recurring-cleared");
   div.draggable = true;
   div.dataset.section = section;
