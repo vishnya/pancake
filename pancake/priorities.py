@@ -179,13 +179,12 @@ def _parse_task(line: str) -> Task | None:
 def next_due_date(deadline: str, recurrence: str) -> str:
     """Compute the next due date for a recurring task.
 
-    Base date is max(today, deadline) + interval, so missed days don't cascade.
+    Always uses today as the base so completing a task early doesn't push
+    the deadline further into the future (e.g. daily task completed 3 days
+    early shouldn't set due date to 4 days from now).
     """
     today = datetime.now().date()
-    if deadline:
-        base = max(today, datetime.strptime(deadline, "%Y-%m-%d").date())
-    else:
-        base = today
+    base = today
 
     rec = recurrence.lower().strip()
     if rec in ("daily", "1d"):
