@@ -3,7 +3,8 @@
 import os
 import subprocess
 
-PANCAKE_DIR = os.path.expanduser("~/code/pancake")
+# Derive PANCAKE_DIR from this file's location (tests/ is one level below repo root)
+PANCAKE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_install_script_exists():
@@ -22,11 +23,11 @@ def test_uninstall_script_executable():
     assert os.access(f"{PANCAKE_DIR}/uninstall.sh", os.X_OK)
 
 
-def test_lc_on_path_after_install():
-    """After install, `lc` should be available."""
-    result = subprocess.run(["which", "lc"], capture_output=True, text=True)
+def test_pk_on_path_after_install():
+    """After install, `pk` should be available."""
+    result = subprocess.run(["which", "pk"], capture_output=True, text=True)
     if result.returncode == 0:
-        assert ".local/bin/lc" in result.stdout or "pancake" in result.stdout
+        assert ".local/bin/pk" in result.stdout or "pancake" in result.stdout
 
 
 def test_priorities_template_exists():
