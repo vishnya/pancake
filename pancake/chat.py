@@ -1,6 +1,8 @@
-"""Chat backend using the Anthropic SDK for streaming responses."""
+"""Chat backend with support for Anthropic API and local Claude CLI."""
 
 import os
+
+from pancake import chat_local
 
 
 def _get_api_key() -> str | None:
@@ -8,8 +10,17 @@ def _get_api_key() -> str | None:
     return os.environ.get("ANTHROPIC_API_KEY")
 
 
-def is_available() -> bool:
-    """Check if chat is available (API key exists and SDK importable)."""
+def _get_backend() -> str:
+    """Read PANCAKE_CHAT_BACKEND from environment.
+
+    Valid values: "local", "api", "auto", "disabled".
+    Default: "auto".
+    """
+    return os.environ.get("PANCAKE_CHAT_BACKEND", "auto").lower()
+
+
+def is_api_available() -> bool:
+    """Check if the Anthropic API backend is usable (key + SDK)."""
     if not _get_api_key():
         return False
     try:
@@ -17,6 +28,44 @@ def is_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def is_local_available() -> bool:
+    """Check if the local Claude CLI backend is usable."""
+    return chat_local.is_available()
+
+
+def is_available() -> bool:
+    """Check if any chat backend is available."""
+    backend = _get_backend()
+    if backend == "disabled":
+        return False
+    if backend == "local":
+        return is_local_available()
+    if backend == "api":
+        return is_api_available()
+    # auto: either works
+    return is_local_available() or is_api_available()
+
+
+def get_active_backend() -> str | None:
+    """Return the active backend name ("local", "api") or None.
+
+    In "auto" mode, prefer local CLI over API.
+    """
+    backend = _get_backend()
+    if backend == "disabled":
+        return None
+    if backend == "local":
+        return "local" if is_local_available() else None
+    if backend == "api":
+        return "api" if is_api_available() else None
+    # auto: prefer local
+    if is_local_available():
+        return "local"
+    if is_api_available():
+        return "api"
+    return None
 
 
 def stream_response(system_prompt: str, messages: list[dict]):
