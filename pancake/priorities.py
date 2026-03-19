@@ -468,11 +468,20 @@ def auto_sort_recurring(p: Priorities) -> bool:
 
             if due <= today:
                 # Due today or overdue → should be Active (overrides manual)
-                if section_name != "active":
+                if task.manual:
                     task.manual = False  # deadline arrived, clear override
+                    changed = True
+                if section_name != "active":
+                    moves.append((section_name, i, task, "active"))
+            elif due <= tomorrow and task.manual:
+                # Due tomorrow but still crossed off from yesterday — uncross it
+                # This handles timezone skew (server UTC vs user local time)
+                task.manual = False
+                changed = True
+                if section_name != "active":
                     moves.append((section_name, i, task, "active"))
             elif task.manual:
-                continue  # respect manual placement for future tasks
+                continue  # respect manual placement for further-out tasks
             elif due <= tomorrow:
                 # Due tomorrow → should be Active
                 if section_name != "active":

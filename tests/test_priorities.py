@@ -712,14 +712,15 @@ def test_auto_sort_due_in_active_within_week_demoted():
 
 
 def test_auto_sort_skips_manual_task_tomorrow():
-    """Recurring task with manual=True due tomorrow should not be auto-sorted to active."""
+    """Recurring task with manual=True due tomorrow should be uncrossed and moved to active."""
     p = Priorities(
         up_next=[Task(text="daily standup", recurrence="daily", deadline=_days_from_now(1), manual=True)]
     )
     changed = auto_sort_recurring(p)
-    assert not changed
-    assert len(p.up_next) == 1
-    assert len(p.active) == 0
+    assert changed
+    assert len(p.up_next) == 0
+    assert len(p.active) == 1
+    assert not p.active[0].manual  # manual cleared
 
 
 def test_auto_sort_overrides_manual_when_due_today():
