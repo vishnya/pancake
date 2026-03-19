@@ -1,5 +1,6 @@
 """Pancake web UI -- drag-and-drop priority board backed by PRIORITIES.md."""
 
+from datetime import datetime
 import hashlib
 import hmac
 import io
@@ -577,6 +578,8 @@ class PancakeHandler(SimpleHTTPRequestHandler):
             self._handle_task_move(body)
         elif self.path == "/api/task/undone":
             self._handle_undone(body)
+        elif self.path == "/api/task/unclear":
+            self._handle_unclear(body)
         elif self.path == "/api/undo":
             self._handle_undo(body)
         elif self.path == "/api/redo":
@@ -1006,6 +1009,23 @@ class PancakeHandler(SimpleHTTPRequestHandler):
                 tasks[idx], tasks[idx - 1] = tasks[idx - 1], tasks[idx]
             elif direction == "down" and idx < len(tasks) - 1:
                 tasks[idx], tasks[idx + 1] = tasks[idx + 1], tasks[idx]
+        _snapshot_and_save(p)
+        self._json_response(self._get_priorities())
+
+    def _handle_unclear(self, body):
+        """Undo a recurring task's 'cleared for today' state — uncheck it and move to active."""
+        p = load()
+        section = body.get("section", "up_next")
+        idx = body.get("index", 0)
+        tasks = getattr(p, section, [])
+        if idx < len(tasks):
+            task = tasks[idx]
+            if task.recurrence and task.manual:
+                task.manual = False
+                task.deadline = datetime.now().strftime("%Y-%m-%d")
+                if section != "active":
+                    tasks.pop(idx)
+                    p.active.append(task)
         _snapshot_and_save(p)
         self._json_response(self._get_priorities())
 

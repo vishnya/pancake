@@ -1146,6 +1146,38 @@ def test_recurring_project_task_done_resets(server):
     assert data["projects"][0]["tasks"][0]["deadline"] != "2026-03-16"
 
 
+def test_unclear_recurring_task_moves_to_active(server):
+    """Unchecking a cleared recurring task should clear manual, set deadline to today, move to active."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    p = Priorities(
+        up_next=[Task(text="Anki", project="SP", recurrence="daily", deadline="2026-03-20", manual=True)],
+        projects=[ProjectInfo(name="SP")],
+    )
+    save(p)
+    data = _api(server, "task/unclear", {"section": "up_next", "index": 0})
+    assert any(t["text"] == "Anki" for t in data["active"])
+    assert not any(t["text"] == "Anki" for t in data["up_next"])
+    anki = next(t for t in data["active"] if t["text"] == "Anki")
+    assert anki["manual"] is False
+    assert anki["deadline"] == today
+
+
+def test_unclear_recurring_task_already_in_active(server):
+    """Unclearing a task already in active should just clear manual flag."""
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    p = Priorities(
+        active=[Task(text="Anki", project="SP", recurrence="daily", deadline="2026-03-20", manual=True)],
+        projects=[ProjectInfo(name="SP")],
+    )
+    save(p)
+    data = _api(server, "task/unclear", {"section": "active", "index": 0})
+    assert any(t["text"] == "Anki" for t in data["active"])
+    anki = next(t for t in data["active"] if t["text"] == "Anki")
+    assert anki["manual"] is False
+
+
 def test_recurrence_in_task_dict(server):
     p = Priorities(active=[Task(text="t", recurrence="weekly", deadline="2026-03-20")])
     save(p)

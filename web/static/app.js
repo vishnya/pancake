@@ -1,5 +1,15 @@
 let state = { active: [], up_next: [], inbox: [], projects: [], done: [], notes: [] };
 
+// Refresh recurring tasks when the date changes (e.g. page left open overnight)
+let _lastCheckedDate = new Date().toDateString();
+setInterval(() => {
+  const today = new Date().toDateString();
+  if (today !== _lastCheckedDate) {
+    _lastCheckedDate = today;
+    api("priorities");  // GET triggers auto_sort_recurring on server
+  }
+}, 60000);  // check every minute
+
 // Cached profile members for assignee dropdown
 let _profileMembers = null;
 let _profileMembersLoading = false;
@@ -422,9 +432,11 @@ function buildTaskEl(task, section, index, opts = {}) {
 
   const cb = document.createElement("input");
   cb.type = "checkbox";
-  cb.checked = task.done;
+  cb.checked = task.done || isRecurringCleared;
   if (opts.doneHandler) {
     cb.addEventListener("change", opts.doneHandler);
+  } else if (isRecurringCleared) {
+    cb.addEventListener("change", () => api("task/unclear", { section, index }));
   } else {
     cb.addEventListener("change", () => api("task/done", { section, index }));
   }
