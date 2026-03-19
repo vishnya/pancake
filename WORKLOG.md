@@ -7,6 +7,9 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ### 2026-03-19 | Server
 - Fix recurring task "crossed off" bug: was using date comparison (deadline > today) to show strikethrough, now uses manual flag so tasks only appear crossed off after being checked off, not just because deadline is in the future
+- Add /api/task/unclear: unchecking a crossed-off recurring task clears manual flag, sets deadline to today, moves to active
+- Checkbox now shows checked state for cleared recurring tasks (was always unchecked before)
+- Frontend polls every 60s for date change, re-fetches to trigger auto_sort_recurring overnight
 
 ### 2026-03-18 | Server
 - Tap to expand truncated task text on mobile (smooth CSS grid 0fr/1fr animation)
