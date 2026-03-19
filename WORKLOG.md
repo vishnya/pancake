@@ -6,6 +6,14 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-19 | Server
+- Locked-down server compatibility: gitignore personal data, make anthropic optional, add local Claude CLI chat backend
+- New pancake/chat_local.py: spawns claude CLI as subprocess, streams responses via stream-json
+- Backend selection: PANCAKE_CHAT_BACKEND env (local/api/auto/disabled), server routes to active backend
+- Rewrote install.sh: git clone fallback, repo-inside-repo detection, global VCS ignores, proxy-aware pip, chat backend prompt, systemd+tmux fallback
+- README: added server-without-github docs, env var reference table
+- 20 new tests for backend selection and local CLI parsing
+
+### 2026-03-19 | Server
 - Changed Think agent persona from passive note-taker to accountability coach/mentor
 - New prompt: asks clarifying questions, calls out stale tasks, challenges avoidance, celebrates wins
 - Fix recurring task staying crossed off: timezone skew meant daily task checked off at night ET got deadline=tomorrow (server is UTC), so auto_sort never triggered the "due today" uncross. Now tasks due tomorrow with manual=True also get uncrossed
@@ -75,18 +83,4 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ### 2026-03-16 | Server
 - Fix chat panel header hidden behind status bar on mobile (close button was untappable)
-
-### 2026-03-16 | Server
-- Fixed inline mic (Web Speech API) for web Think panel, then replaced with Whisper-based voice (from phone session)
-- Set up system watchdog (/root/repos/watchdog.sh, cron every 5min): checks services, HTTP health, restarts, escalates to Claude for complex issues
-- Changed claude-web and pancake systemd to Restart=always (were on-failure, missed clean exits)
-- Added no-cache headers for /code/ route in Caddy
-
-### 2026-03-15 | Server
-- Replaced broken Web Speech API voice input with MediaRecorder + server-side Whisper (faster-whisper tiny model)
-- New `/api/transcribe` endpoint accepts audio blobs and returns transcribed text
-- Silence detection via Web Audio API analyser node (auto-stops after 2s silence)
-- Installed faster-whisper + ffmpeg on server
-
-
 
