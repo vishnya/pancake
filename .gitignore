@@ -5,5 +5,9 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
-data/chat_sessions/
-data/sessions.json
+
+# Personal data
+data/
+config/
+vault/
+.env
