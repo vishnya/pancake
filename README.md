@@ -191,6 +191,48 @@ On a server, each profile's vault is at `vault/<profile-name>/`. On a Mac, set `
 
 ---
 
+## Installing on a server without GitHub access
+
+If your server can't reach github.com, get the code there first:
+
+**Option A: scp from your laptop**
+
+```bash
+# On your laptop (after cloning):
+scp -r ~/pancake yourserver:~/pancake
+
+# On the server:
+cd ~/pancake && bash install.sh
+```
+
+**Option B: Download a release tarball**
+
+Download from the GitHub releases page on a machine with access,
+then transfer the .tar.gz to your server.
+
+If pip needs a proxy on your server, set it before running the installer:
+
+```bash
+export https_proxy="http://your-proxy:port"
+bash install.sh
+```
+
+---
+
+## Environment variables
+
+These go in `.env` (created by the installer):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PANCAKE_DIR` | `~/pancake` | Install location |
+| `PANCAKE_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` for remote access) |
+| `PANCAKE_CHAT_BACKEND` | `auto` | Chat backend: `local`, `api`, `auto`, or `disabled` |
+| `PANCAKE_CHAT_MODEL` | `claude-opus-4-6[1m]` | Model for local CLI backend |
+| `ANTHROPIC_API_KEY` | — | Required if using `api` backend |
+
+---
+
 ## Uninstall
 
 ```bash
