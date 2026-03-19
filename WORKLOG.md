@@ -6,6 +6,10 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ---
 
 ### 2026-03-19 | Server
+- Changed Think agent persona from passive note-taker to accountability coach/mentor
+- New prompt: asks clarifying questions, calls out stale tasks, challenges avoidance, celebrates wins
+
+### 2026-03-19 | Server
 - Fix recurring task "crossed off" bug: was using date comparison (deadline > today) to show strikethrough, now uses manual flag so tasks only appear crossed off after being checked off, not just because deadline is in the future
 - Add /api/task/unclear: unchecking a crossed-off recurring task clears manual flag, sets deadline to today, moves to active
 - Checkbox now shows checked state for cleared recurring tasks (was always unchecked before)
