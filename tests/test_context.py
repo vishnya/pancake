@@ -19,7 +19,7 @@ def tmp_user_context(tmp_path):
 def test_build_context_empty(tmp_user_context):
     p = Priorities()
     ctx = build_context(p, tmp_user_context)
-    assert "note-taking" in ctx
+    assert "accountability coach" in ctx
     # No sections beyond header
     assert "## Active" not in ctx
 
