@@ -8,6 +8,7 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 ### 2026-03-19 | Server
 - Changed Think agent persona from passive note-taker to accountability coach/mentor
 - New prompt: asks clarifying questions, calls out stale tasks, challenges avoidance, celebrates wins
+- Fix recurring task staying crossed off: timezone skew meant daily task checked off at night ET got deadline=tomorrow (server is UTC), so auto_sort never triggered the "due today" uncross. Now tasks due tomorrow with manual=True also get uncrossed
 
 ### 2026-03-19 | Server
 - Fix recurring task "crossed off" bug: was using date comparison (deadline > today) to show strikethrough, now uses manual flag so tasks only appear crossed off after being checked off, not just because deadline is in the future
