@@ -5,6 +5,9 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-19 | Server
+- Fix recurring task "crossed off" bug: was using date comparison (deadline > today) to show strikethrough, now uses manual flag so tasks only appear crossed off after being checked off, not just because deadline is in the future
+
 ### 2026-03-18 | Server
 - Tap to expand truncated task text on mobile (smooth CSS grid 0fr/1fr animation)
 - Archived projects now show in History section with restore button and count
