@@ -5,6 +5,10 @@ Keep only the last 10 entries. Each entry: date, device, what was done.
 
 ---
 
+### 2026-03-30 | Server
+- Fix: "Add note or link..." input was invisible in task expansion — addNoteInput was created but never appended to addNoteRow (detached DOM node)
+- Status: Fixed and committed. Note input field now renders when expanding tasks. Enrichment/crawling pipeline from BRAINSTORMING.md still not implemented.
+
 ### 2026-03-19 | Server
 - Locked-down server compatibility: gitignore personal data, make anthropic optional, add local Claude CLI chat backend
 - New pancake/chat_local.py: spawns claude CLI as subprocess, streams responses via stream-json
