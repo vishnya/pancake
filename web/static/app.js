@@ -732,6 +732,7 @@ function buildTaskEl(task, section, index, opts = {}) {
       if (val) { addNoteInput.value = ""; api("task/add_note", { section, index, text: val }); }
     }
   });
+  addNoteRow.appendChild(addNoteInput);
   subInner.appendChild(addNoteRow);
   sub.appendChild(subInner);
 
